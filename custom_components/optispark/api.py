@@ -102,7 +102,8 @@ class OptisparkApiClient:
 
     async def upload_history(self, dynamo_data):
         """Upload historical data to dynamoDB without calculating heat pump profile."""
-        lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        lambda_url = 'http://localhost:5000/home-assistant/history'
         payload = {'dynamo_data': dynamo_data}
         payload['upload_only'] = True
         extra = await self._api_wrapper(
@@ -119,7 +120,8 @@ class OptisparkApiClient:
 
         dynamo_data will only contain the user_hash.
         """
-        lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        lambda_url = 'http://localhost:5000/home-assistant/data-dates'
         payload = {'dynamo_data': dynamo_data}
         payload['get_newest_oldest_data_date_only'] = True
         extra = await self._api_wrapper(
@@ -134,7 +136,8 @@ class OptisparkApiClient:
 
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
-        lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
+        lambda_url = 'http://localhost:5000/home-assistant/profile'
 
         payload = lambda_args
         payload['get_profile_only'] = True
