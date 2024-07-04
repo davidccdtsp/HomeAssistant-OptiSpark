@@ -77,8 +77,10 @@ class OptisparkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     postcode = await self.test_postcode(user_input['postcode'])
                     await self.test_units(user_input['heat_pump_power_entity_id'])
                     user_input['postcode'] = postcode  # Fix postcode formating
+                    user_input['address'] = user_input['address']
                 else:
                     user_input['postcode'] = None
+                    user_input['address'] = None
                 if 'external_temp_entity_id' not in user_input:
                     user_input['external_temp_entity_id'] = None
 
@@ -106,13 +108,16 @@ class OptisparkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         self.hass.config.latitude,
                         self.hass.config.longitude))
                     postcode = location.raw['address']['postcode']
+                    address = location.raw['address']['road'] + ', ' + location.raw['address']['city']
                 if postcode == '' or postcode is None:
                     raise OptisparkApiClientPostcodeError()
             except Exception as err:
                 LOGGER.warning(err)
                 postcode = ''
+                address = ''
                 errors["base"] = "postcode_homeassistant"
             data_schema[vol.Required('postcode', default=postcode)] = str
+            data_schema[vol.Required('address', default=address)] = str
 
         data_schema[vol.Required("climate_entity_id")] = selector({
             "entity": {

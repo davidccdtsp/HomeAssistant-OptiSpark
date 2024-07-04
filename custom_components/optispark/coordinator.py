@@ -44,7 +44,9 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         external_temp_entity_id: str,
         user_hash: str,
         postcode: str,
-        tariff: str
+        tariff: str,
+        address: str,
+        country: str,
     ) -> None:
         """Initialize."""
         self.client = client
@@ -56,6 +58,8 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self._postcode = postcode if postcode is not None else 'AB11 6LU'
         self._tariff = tariff
+        self._address = address
+        self._country = country
         #user_hash = 'debug_hash'
         self._user_hash = user_hash
         self._climate_entity_id = climate_entity_id
