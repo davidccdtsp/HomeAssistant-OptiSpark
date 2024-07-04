@@ -1,4 +1,5 @@
 """Optispark API Client."""
+
 from __future__ import annotations
 
 import asyncio
@@ -13,45 +14,36 @@ import gzip
 import base64
 from .const import LOGGER
 import traceback
+from http import HTTPStatus
+
+from .rest.models.login_response import LoginResponse
 
 
 class OptisparkApiClientError(Exception):
     """Exception to indicate a general API error."""
 
 
-class OptisparkApiClientTimeoutError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientTimeoutError(OptisparkApiClientError):
     """Lamba probably took too long starting up."""
 
 
-class OptisparkApiClientCommunicationError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientCommunicationError(OptisparkApiClientError):
     """Exception to indicate a communication error."""
 
 
-class OptisparkApiClientAuthenticationError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientAuthenticationError(OptisparkApiClientError):
     """Exception to indicate an authentication error."""
 
 
-class OptisparkApiClientLambdaError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientLambdaError(OptisparkApiClientError):
     """Exception to indicate lambda return an error."""
 
 
-class OptisparkApiClientPostcodeError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientPostcodeError(OptisparkApiClientError):
     """Exception to indicate invalid postcode."""
 
 
-class OptisparkApiClientUnitError(
-    OptisparkApiClientError
-):
+class OptisparkApiClientUnitError(OptisparkApiClientError):
     """Exception to indicate unit error."""
 
 
@@ -68,7 +60,10 @@ def floats_to_decimal(obj):
         return None
     # Go deeper
     elif isinstance(obj, dict):
-        return {floats_to_decimal(key): floats_to_decimal(value) for key, value in obj.items()}
+        return {
+            floats_to_decimal(key): floats_to_decimal(value)
+            for key, value in obj.items()
+        }
     elif isinstance(obj, set):
         return {floats_to_decimal(element) for element in obj}
     elif isinstance(obj, list):
@@ -78,12 +73,14 @@ def floats_to_decimal(obj):
     elif isinstance(obj, datetime):
         return floats_to_decimal(obj.timestamp())
     else:
-        LOGGER.error(f'Object of type {type(obj)} not supported by DynamoDB')
-        raise TypeError(f'Object of type {type(obj)} not supported by DynamoDB')
+        LOGGER.error(f"Object of type {type(obj)} not supported by DynamoDB")
+        raise TypeError(f"Object of type {type(obj)} not supported by DynamoDB")
 
 
 class OptisparkApiClient:
     """Optispark API Client."""
+
+    _token: str | None
 
     def __init__(
         self,
@@ -91,6 +88,7 @@ class OptisparkApiClient:
     ) -> None:
         """Sample API Client."""
         self._session = session
+        self._token = None
 
     def datetime_set_utc(self, d: dict[str, datetime]):
         """Set the timezone of the datetime values to UTC."""
@@ -103,16 +101,16 @@ class OptisparkApiClient:
     async def upload_history(self, dynamo_data):
         """Upload historical data to dynamoDB without calculating heat pump profile."""
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = 'http://localhost:5000/home-assistant/history'
-        payload = {'dynamo_data': dynamo_data}
-        payload['upload_only'] = True
+        lambda_url = "http://localhost:5000/home-assistant/history"
+        payload = {"dynamo_data": dynamo_data}
+        payload["upload_only"] = True
         extra = await self._api_wrapper(
             method="post",
             url=lambda_url,
             data=payload,
         )
-        oldest_dates = self.datetime_set_utc(extra['oldest_dates'])
-        newest_dates = self.datetime_set_utc(extra['newest_dates'])
+        oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
+        newest_dates = self.datetime_set_utc(extra["newest_dates"])
         return oldest_dates, newest_dates
 
     async def get_data_dates(self, dynamo_data: dict):
@@ -120,106 +118,178 @@ class OptisparkApiClient:
 
         dynamo_data will only contain the user_hash.
         """
+        # auth_url = "http://localhost:5000/auth/ha_login"
+        # LOGGER.debug(auth_url)
+        # LOGGER.debug("***********************************************")
+        # LOGGER.debug(dynamo_data["user_hash"])
+
+        # # user_hash = dynamo_data["user_hash"]
+        # payload = {"user_hash": dynamo_data["user_hash"]}
+
+        # response = await self._session.request(
+        #     method="post",
+        #     url=auth_url,
+        #     json=payload,
+        # )
+
+        # print(response.status)
+        # res = await response.json()
+        # print(res["access_token"])
+        # token = res["access_token"]
+
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = 'http://localhost:5000/home-assistant/data-dates'
-        payload = {'dynamo_data': dynamo_data}
-        payload['get_newest_oldest_data_date_only'] = True
+        lambda_url = "http://localhost:5000/home-assistant/data-dates"
+        payload = {"dynamo_data": dynamo_data}
+        payload["get_newest_oldest_data_date_only"] = True
+        payload["user_hash"] = dynamo_data["user_hash"]
+        # print(payload)
         extra = await self._api_wrapper(
             method="post",
             url=lambda_url,
             data=payload,
         )
-        oldest_dates = self.datetime_set_utc(extra['oldest_dates'])
-        newest_dates = self.datetime_set_utc(extra['newest_dates'])
+        print(extra)
+        oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
+        newest_dates = self.datetime_set_utc(extra["newest_dates"])
 
         return oldest_dates, newest_dates
 
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = 'http://localhost:5000/home-assistant/profile'
+        lambda_url = "http://localhost:5000/home-assistant/profile"
 
         payload = lambda_args
-        payload['get_profile_only'] = True
-        LOGGER.debug('----------Lambda get profile----------')
+        payload["get_profile_only"] = True
+        LOGGER.debug("----------Lambda get profile----------")
         results, errors = await self._api_wrapper(
             method="post",
             url=lambda_url,
             data=payload,
         )
-        if errors['success'] is False:
+        if errors["success"] is False:
             LOGGER.debug(f'OptisparkApiClientLambdaError: {errors["error_message"]}')
-            raise OptisparkApiClientLambdaError(errors['error_message'])
-        if results['optimised_cost'] == 0:
+            raise OptisparkApiClientLambdaError(errors["error_message"])
+        if results["optimised_cost"] == 0:
             # Heating isn't active.  Should the savings be 0?
-            results['projected_percent_savings'] = 100
+            results["projected_percent_savings"] = 100
         else:
-            results['projected_percent_savings'] = results['base_cost']/results['optimised_cost']*100 - 100
+            results["projected_percent_savings"] = (
+                results["base_cost"] / results["optimised_cost"] * 100 - 100
+            )
         return results
 
     def json_serialisable(self, data):
         """Convert to compressed bytes so that data can be converted to json."""
         uncompressed_data = pickle.dumps(data)
+        # print(data)
+        # print(uncompressed_data)
         compressed_data = gzip.compress(uncompressed_data)
-        LOGGER.debug(f'len(uncompressed_data): {len(uncompressed_data)}')
-        LOGGER.debug(f'len(compressed_data): {len(compressed_data)}')
-        base64_string = base64.b64encode(compressed_data).decode('utf-8')
+        LOGGER.debug(f"len(uncompressed_data): {len(uncompressed_data)}")
+        LOGGER.debug(f"len(compressed_data): {len(compressed_data)}")
+        base64_string = base64.b64encode(compressed_data).decode("utf-8")
         return base64_string
 
     def json_deserialise(self, payload):
         """Convert from the compressed bytes to original objects."""
-        payload = payload['serialised_payload']
+        # payload = payload["serialised_payload"]
+        # payload = payload["serialisePayload"]
         payload = base64.b64decode(payload)
         payload = gzip.decompress(payload)
         payload = pickle.loads(payload)
         return payload
 
-    async def _api_wrapper(
-        self,
-        method: str,
-        url: str,
-        data: dict,
-    ):
+    async def _login(self, user_hash: str) -> LoginResponse:
+        # TODO: move to config
+        auth_url = "http://localhost:5000/auth/ha_login"
+        try:
+            payload = {"user_hash": user_hash}
+            response = await self._session.request(
+                method="post",
+                url=auth_url,
+                json=payload,
+            )
+
+            if response.status != HTTPStatus.OK:
+                raise OptisparkApiClientAuthenticationError(
+                    "Invalid credentials",
+                ) from Exception
+
+            json_response = await response.json()
+
+            return LoginResponse(
+                token=json_response["accessToken"],
+                token_type=json_response["tokenType"],
+                has_locations=json_response["hasLocations"],
+                has_devices=json_response["hasDevices"],
+            )
+
+        except:
+            raise OptisparkApiClientAuthenticationError(
+                "Invalid credentials",
+            ) from Exception
+
+    async def _api_wrapper(self, method: str, url: str, data: dict):
         """Call the Lambda function."""
         try:
-            if 'dynamo_data' in data:
-                data['dynamo_data'] = floats_to_decimal(data['dynamo_data'])
+            if "dynamo_data" in data:
+                data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
             data_serialised = self.json_serialisable(data)
 
             async with async_timeout.timeout(120):
+                LOGGER.debug(f" Initiating login into OptiSpark backend")
+                if not self._token:
+                    user_hash = data["user_hash"]
+                    if user_hash:
+                        loginResponse: LoginResponse = await self._login(
+                            user_hash="user_hash"
+                        )
+                        self._token = loginResponse.token
+                        LOGGER.debug(f" User token: {loginResponse.token}")
+
                 response = await self._session.request(
                     method=method,
                     url=url,
                     json=data_serialised,
                 )
                 if response.status in (401, 403):
+                    # Clean token forcing login in next api_wrapper call
+                    self._token = None
                     raise OptisparkApiClientAuthenticationError(
                         "Invalid credentials",
                     )
+
                 if response.status == 502:
                     # HomeAssistant will not print errors if there was never a successful update
-                    LOGGER.debug('OptisparkApiClientCommunicationError:\n  502 Bad Gateway - check payload')
+                    LOGGER.debug(
+                        "OptisparkApiClientCommunicationError:\n  502 Bad Gateway - check payload"
+                    )
                     raise OptisparkApiClientCommunicationError(
-                        '502 Bad Gateway - check payload')
+                        "502 Bad Gateway - check payload"
+                    )
                 response.raise_for_status()
                 payload = await response.json()
                 return self.json_deserialise(payload)
 
         except asyncio.TimeoutError as exception:
             LOGGER.error(traceback.format_exc())
-            LOGGER.error('OptisparkApiClientTimeoutError:\n  Timeout error fetching information')
+            LOGGER.error(
+                "OptisparkApiClientTimeoutError:\n  Timeout error fetching information"
+            )
             raise OptisparkApiClientTimeoutError(
                 "Timeout error fetching information",
             ) from exception
         except (aiohttp.ClientError, socket.gaierror) as exception:
             LOGGER.error(traceback.format_exc())
-            LOGGER.error('OptisparkApiClientCommunicationError:\n  Error fetching information')
+            LOGGER.error(
+                "OptisparkApiClientCommunicationError:\n  Error fetching information"
+            )
             raise OptisparkApiClientCommunicationError(
                 "Error fetching information",
             ) from exception
         except Exception as exception:  # pylint: disable=broad-except
             LOGGER.error(traceback.format_exc())
-            LOGGER.error('OptisparkApiClientError:\n  Something really wrong happened!')
+            LOGGER.error("OptisparkApiClientError:\n  Something really wrong happened!")
             raise OptisparkApiClientError(
                 "Something really wrong happened!"
             ) from exception
