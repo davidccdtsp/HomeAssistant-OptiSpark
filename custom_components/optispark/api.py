@@ -16,35 +16,37 @@ from .const import LOGGER
 import traceback
 from http import HTTPStatus
 
-from .rest.models.login_response import LoginResponse
+from .rest.auth.auth_service import AuthService
+from .rest.auth.model.login_response import LoginResponse
+from .rest.exception.exceptions import *
 
 
-class OptisparkApiClientError(Exception):
-    """Exception to indicate a general API error."""
+# class OptisparkApiClientError(Exception):
+#     """Exception to indicate a general API error."""
 
 
-class OptisparkApiClientTimeoutError(OptisparkApiClientError):
-    """Lamba probably took too long starting up."""
+# class OptisparkApiClientTimeoutError(OptisparkApiClientError):
+#     """Lamba probably took too long starting up."""
 
 
-class OptisparkApiClientCommunicationError(OptisparkApiClientError):
-    """Exception to indicate a communication error."""
-
-
-class OptisparkApiClientAuthenticationError(OptisparkApiClientError):
-    """Exception to indicate an authentication error."""
-
-
-class OptisparkApiClientLambdaError(OptisparkApiClientError):
-    """Exception to indicate lambda return an error."""
-
-
-class OptisparkApiClientPostcodeError(OptisparkApiClientError):
-    """Exception to indicate invalid postcode."""
-
-
-class OptisparkApiClientUnitError(OptisparkApiClientError):
-    """Exception to indicate unit error."""
+# class OptisparkApiClientCommunicationError(OptisparkApiClientError):
+#     """Exception to indicate a communication error."""
+#
+#
+# class OptisparkApiClientAuthenticationError(OptisparkApiClientError):
+#     """Exception to indicate an authentication error."""
+#
+#
+# class OptisparkApiClientLambdaError(OptisparkApiClientError):
+#     """Exception to indicate lambda return an error."""
+#
+#
+# class OptisparkApiClientPostcodeError(OptisparkApiClientError):
+#     """Exception to indicate invalid postcode."""
+#
+#
+# class OptisparkApiClientUnitError(OptisparkApiClientError):
+#     """Exception to indicate unit error."""
 
 
 def floats_to_decimal(obj):
@@ -81,6 +83,7 @@ class OptisparkApiClient:
     """Optispark API Client."""
 
     _token: str | None
+    _auth_service: AuthService
 
     def __init__(
         self,
@@ -89,6 +92,7 @@ class OptisparkApiClient:
         """Sample API Client."""
         self._session = session
         self._token = None
+        self._auth_service = AuthService(session=session)
 
     def datetime_set_utc(self, d: dict[str, datetime]):
         """Set the timezone of the datetime values to UTC."""
@@ -199,38 +203,49 @@ class OptisparkApiClient:
         payload = pickle.loads(payload)
         return payload
 
-    async def _login(self, user_hash: str) -> LoginResponse:
-        # TODO: move to config
-        auth_url = "http://localhost:5000/auth/ha_login"
-        try:
-            payload = {"user_hash": user_hash}
-            response = await self._session.request(
-                method="post",
-                url=auth_url,
-                json=payload,
-            )
+    # async def _login(self, user_hash: str) -> LoginResponse:
+    #     # TODO: move to config
+    #     auth_url = "http://localhost:5000/auth/ha_login"
+    #     try:
+    #         payload = {"user_hash": user_hash}
+    #         response = await self._session.request(
+    #             method="post",
+    #             url=auth_url,
+    #             json=payload,
+    #         )
+    #
+    #         if response.status != HTTPStatus.OK:
+    #             raise OptisparkApiClientAuthenticationError(
+    #                 "Invalid credentials",
+    #             ) from Exception
+    #
+    #         json_response = await response.json()
+    #
+    #         return LoginResponse(
+    #             token=json_response["accessToken"],
+    #             token_type=json_response["tokenType"],
+    #             has_locations=json_response["hasLocations"],
+    #             has_devices=json_response["hasDevices"],
+    #         )
+    #
+    #     except:
+    #         raise OptisparkApiClientAuthenticationError(
+    #             "Invalid credentials",
+    #         ) from Exception
 
-            if response.status != HTTPStatus.OK:
-                raise OptisparkApiClientAuthenticationError(
-                    "Invalid credentials",
-                ) from Exception
-
-            json_response = await response.json()
-
-            return LoginResponse(
-                token=json_response["accessToken"],
-                token_type=json_response["tokenType"],
-                has_locations=json_response["hasLocations"],
-                has_devices=json_response["hasDevices"],
-            )
-
-        except:
-            raise OptisparkApiClientAuthenticationError(
-                "Invalid credentials",
-            ) from Exception
+    # async def _add_location(self):
 
     async def _api_wrapper(self, method: str, url: str, data: dict):
         """Call the Lambda function."""
+        # ha: core.HomeAssistant = core.async_get_hass()
+        # print("************************************")
+        # print(ha.data.keys())
+        #
+        # config = ha.config
+        # if not config:
+        #     print("NOOOOOOOOOO")
+        # print(config.latitude)
+        # print(config.longitude)
         try:
             if "dynamo_data" in data:
                 data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
@@ -241,7 +256,7 @@ class OptisparkApiClient:
                 if not self._token:
                     user_hash = data["user_hash"]
                     if user_hash:
-                        loginResponse: LoginResponse = await self._login(
+                        loginResponse: LoginResponse = await self._auth_service.login(
                             user_hash="user_hash"
                         )
                         self._token = loginResponse.token
