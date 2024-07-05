@@ -35,7 +35,7 @@ class LocationResponse:
     def from_json(cls, json: dict):
         try:
             address = json["address"]
-            cls(
+            return cls(
                 id=json["id"],
                 name=json["name"],
                 address=address["address"],

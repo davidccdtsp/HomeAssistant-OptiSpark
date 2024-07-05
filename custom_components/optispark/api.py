@@ -309,7 +309,8 @@ class OptisparkApiClient:
             self.has_location = True if location else False
         if not self._has_devices:
             if not location:
-                location = await self._location_service.get_locations(access_token=self._token)
+                locations: [LocationResponse] = await self._location_service.get_locations(access_token=self._token)
+                location = locations[0]
 
             device_request = DeviceRequest(
                 name='Heat Pump',

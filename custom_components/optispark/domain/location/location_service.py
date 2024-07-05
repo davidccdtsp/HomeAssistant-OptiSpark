@@ -79,7 +79,7 @@ class LocationService:
                     "Invalid credentials",
                 ) from Exception
 
-            if response.status != HTTPStatus.CREATED:
+            if response.status != HTTPStatus.OK:
                 raise OptisparkApiClientLocationError(
                     "Get locations error",
                 ) from Exception
