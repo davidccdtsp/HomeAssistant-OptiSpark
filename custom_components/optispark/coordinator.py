@@ -584,8 +584,6 @@ class LambdaUpdateHandler:
             "address": lambda_args["address"],
             "city": lambda_args["city"],
         }
-        print("-----------------------------------------")
-        print(dynamo_data)
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
