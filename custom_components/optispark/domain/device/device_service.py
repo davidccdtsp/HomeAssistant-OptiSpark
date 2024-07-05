@@ -1,19 +1,17 @@
 from http import HTTPStatus
 
 import aiohttp
+from aiohttp import ClientResponse
 
 from custom_components.optispark.configuration_service import config_service
-from custom_components.optispark.domain.exception.exceptions import (
-    OptisparkApiClientAuthenticationError,
-    OptisparkApiClientLocationError,
-)
-from custom_components.optispark.domain.location.model.location_request import (
-    LocationRequest,
-)
-from custom_components.optispark.domain.location.model.location_response import LocationResponse
+from custom_components.optispark.domain.device.model.device_request import DeviceRequest
+from custom_components.optispark.domain.device.model.device_response import DeviceResponse
+from custom_components.optispark.domain.exception.exceptions import OptisparkApiClientAuthenticationError, \
+    OptisparkApiClientDeviceError
 
 
-class LocationService:
+class DeviceService:
+
     def __init__(
         self,
         session: aiohttp.ClientSession,
@@ -21,20 +19,17 @@ class LocationService:
         """Sample API Client."""
         self._session = session
 
-    async def add_location(self, request: LocationRequest, access_token: str) -> LocationResponse | None:
-        """Add new location"""
-
+    async def add_device(self, request: DeviceRequest, access_token: str) -> DeviceResponse | None:
         base_url = config_service.get("backend.baseUrl")
-        location_url = f'{base_url}{config_service.get("backend.location.base")}'
+        device_url = f'{base_url}{config_service.get("backend.device.base")}'
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
-
         try:
-            response = await self._session.request(
+            response: ClientResponse = await self._session.request(
                 method="post",
-                url=location_url,
+                url=device_url,
                 headers=headers,
                 json=request.payload(),
             )
@@ -45,16 +40,16 @@ class LocationService:
                 ) from Exception
 
             if response.status != HTTPStatus.CREATED:
-                raise OptisparkApiClientLocationError(
-                    "Add location error",
+                raise OptisparkApiClientDeviceError(
+                    "Add device error",
                 ) from Exception
 
             jsonResponse = await response.json()
-            return LocationResponse.from_json(jsonResponse)
+            return DeviceResponse.from_json(jsonResponse)
 
         except aiohttp.ClientError as e:
             print(f"HTTP error occurred: {e}")
-            raise OptisparkApiClientLocationError("Add location error") from e
+            raise OptisparkApiClientDeviceError("Add device error") from e
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
             raise

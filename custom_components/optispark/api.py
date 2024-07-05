@@ -257,10 +257,11 @@ class OptisparkApiClient:
                             "tariff_code": TARIFF_CODE,
                         }
                     )
-                    self._has_locations = await self._location_service.add_location(
+                    location_response = await self._location_service.add_location(
                         request=location_request,
                         access_token=self._token
                     )
+                    self.has_location = True if location_response else False
 
                 response = await self._session.request(
                     method=method,

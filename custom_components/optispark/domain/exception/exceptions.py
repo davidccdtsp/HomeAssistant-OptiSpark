@@ -40,3 +40,7 @@ class OptisparkApiClientUnitError(OptisparkApiClientError):
 
 class OptisparkApiClientLocationError(OptisparkApiClientError):
     """Exception to indicate an location error."""
+
+
+class OptisparkApiClientDeviceError(OptisparkApiClientError):
+    """Exception to indicate an location error."""

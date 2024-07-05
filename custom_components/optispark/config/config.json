@@ -3,6 +3,9 @@
     "baseUrl": "http://localhost:5000",
     "location": {
       "base": "/location/"
+    },
+    "device": {
+      "base": "/device/"
     }
   }
 }
