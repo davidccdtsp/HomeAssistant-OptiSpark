@@ -18,11 +18,14 @@ from http import HTTPStatus
 
 from .domain.auth.auth_service import AuthService
 from .domain.auth.model.login_response import LoginResponse
+from .domain.device.device_service import DeviceService
+from .domain.device.model.device_request import DeviceRequest
 from .domain.exception.exceptions import *
 from .domain.location.location_service import LocationService
 from .domain.location.model.location_request import (
     LocationRequest,
 )
+from .domain.location.model.location_response import LocationResponse
 
 
 # class OptisparkApiClientError(Exception):
@@ -103,6 +106,7 @@ class OptisparkApiClient:
         self._has_devices = False
         self._auth_service = AuthService(session=session)
         self._location_service = LocationService(session=session)
+        self._device_service = DeviceService(session=session)
         # self._config_service = ConfigurationService(config_file='./config/config.json')
 
     def datetime_set_utc(self, d: dict[str, datetime]):
@@ -232,6 +236,7 @@ class OptisparkApiClient:
 
             async with async_timeout.timeout(120):
                 LOGGER.debug(f" Initiating login into OptiSpark backend")
+                location: LocationResponse | None = None
                 if not self._token:
                     user_hash = data["user_hash"]
                     if user_hash:
@@ -257,11 +262,31 @@ class OptisparkApiClient:
                             "tariff_code": TARIFF_CODE,
                         }
                     )
-                    location_response = await self._location_service.add_location(
+                    location = await self._location_service.add_location(
                         request=location_request,
                         access_token=self._token
                     )
-                    self.has_location = True if location_response else False
+                    self.has_location = True if location else False
+
+                if not self._has_devices:
+                    if not location:
+                        print('NO Location!!!!')
+                    else:
+                        device_request = DeviceRequest(
+                            name='Heat Pump',
+                            location_id=location.id,
+                            manufacturer='ha',
+                            model_name='ha_model',
+                            version='version',
+                            integration_params={}
+                        )
+                        device_response = await self._device_service.add_device(
+                            request=device_request,
+                            access_token=self._token
+                        )
+
+                        self._has_devices = True if device_response else False
+
 
                 response = await self._session.request(
                     method=method,
