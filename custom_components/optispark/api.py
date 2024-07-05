@@ -220,73 +220,13 @@ class OptisparkApiClient:
 
     async def _api_wrapper(self, method: str, url: str, data: dict):
         """Call the Lambda function."""
-        # ha: core.HomeAssistant = core.async_get_hass()
-        # print("************************************")
-        # print(ha.data.keys())
-        #
-        # config = ha.config
-        # if not config:
-        #     print("NOOOOOOOOOO")
-        # print(config.latitude)
-        # print(config.longitude)
         try:
             if "dynamo_data" in data:
                 data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
             data_serialised = self.json_serialisable(data)
 
             async with async_timeout.timeout(120):
-                LOGGER.debug(f" Initiating login into OptiSpark backend")
-                location: LocationResponse | None = None
-                if not self._token:
-                    user_hash = data["user_hash"]
-                    if user_hash:
-                        loginResponse: LoginResponse = await self._auth_service.login(
-                            user_hash="user_hash"
-                        )
-                        self._token = loginResponse.token
-                        self._has_locations = loginResponse.has_locations
-                        self._has_devices = loginResponse.has_devices
-                        LOGGER.debug(f" User token: {loginResponse.token}")
-
-                if not self._has_locations:
-                    info = data["dynamo_data"]
-                    location_request = LocationRequest(
-                        name="home",
-                        address=info["address"],
-                        zipcode=info["postcode"],
-                        city="",
-                        country="GB",
-                        tariff_id=1,
-                        tariff_params={
-                            "product_code": TARIFF_PRODUCT_CODE,
-                            "tariff_code": TARIFF_CODE,
-                        }
-                    )
-                    location = await self._location_service.add_location(
-                        request=location_request,
-                        access_token=self._token
-                    )
-                    self.has_location = True if location else False
-
-                if not self._has_devices:
-                    if not location:
-                        print('NO Location!!!!')
-                    else:
-                        device_request = DeviceRequest(
-                            name='Heat Pump',
-                            location_id=location.id,
-                            manufacturer='ha',
-                            model_name='ha_model',
-                            version='version',
-                            integration_params={}
-                        )
-                        device_response = await self._device_service.add_device(
-                            request=device_request,
-                            access_token=self._token
-                        )
-
-                        self._has_devices = True if device_response else False
-
+                await self._login(data)
 
                 response = await self._session.request(
                     method=method,
@@ -334,3 +274,54 @@ class OptisparkApiClient:
             raise OptisparkApiClientError(
                 "Something really wrong happened!"
             ) from exception
+
+    async def _login(self, data):
+        LOGGER.debug(f" Initiating login into OptiSpark backend")
+        location: LocationResponse | None = None
+        if not self._token:
+            user_hash = data["user_hash"]
+            if user_hash:
+                loginResponse: LoginResponse = await self._auth_service.login(
+                    user_hash="user_hash"
+                )
+                self._token = loginResponse.token
+                self._has_locations = loginResponse.has_locations
+                self._has_devices = loginResponse.has_devices
+                LOGGER.debug(f" User token: {loginResponse.token}")
+        if not self._has_locations:
+            info = data["dynamo_data"]
+            location_request = LocationRequest(
+                name="home",
+                address=info["address"],
+                zipcode=info["postcode"],
+                city="",
+                country="GB",
+                tariff_id=1,
+                tariff_params={
+                    "product_code": TARIFF_PRODUCT_CODE,
+                    "tariff_code": TARIFF_CODE,
+                }
+            )
+            location = await self._location_service.add_location(
+                request=location_request,
+                access_token=self._token
+            )
+            self.has_location = True if location else False
+        if not self._has_devices:
+            if not location:
+                print('NO Location!!!!')
+            else:
+                device_request = DeviceRequest(
+                    name='Heat Pump',
+                    location_id=location.id,
+                    manufacturer='ha',
+                    model_name='ha_model',
+                    version='version',
+                    integration_params={}
+                )
+                device_response = await self._device_service.add_device(
+                    request=device_request,
+                    access_token=self._token
+                )
+
+                self._has_devices = True if device_response else False
