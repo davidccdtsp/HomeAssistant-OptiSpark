@@ -1,4 +1,3 @@
-
 __all__ = [
     "OptisparkApiClientError",
     "OptisparkApiClientTimeoutError",
@@ -6,8 +5,11 @@ __all__ = [
     "OptisparkApiClientAuthenticationError",
     "OptisparkApiClientLambdaError",
     "OptisparkApiClientPostcodeError",
-    "OptisparkApiClientUnitError"
+    "OptisparkApiClientUnitError",
+    "OptisparkApiClientLocationError"
 ]
+
+
 class OptisparkApiClientError(Exception):
     """Exception to indicate a general API error."""
 
@@ -34,3 +36,7 @@ class OptisparkApiClientPostcodeError(OptisparkApiClientError):
 
 class OptisparkApiClientUnitError(OptisparkApiClientError):
     """Exception to indicate unit error."""
+
+
+class OptisparkApiClientLocationError(OptisparkApiClientError):
+    """Exception to indicate an location error."""

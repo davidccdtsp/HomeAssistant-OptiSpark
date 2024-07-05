@@ -47,6 +47,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         postcode: str,
         tariff: str,
         address: str,
+        city: str,
         country: str,
     ) -> None:
         """Initialize."""
@@ -60,6 +61,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         self._postcode = postcode if postcode is not None else "AB11 6LU"
         self._tariff = tariff
         self._address = address
+        self._city = city
         self._country = country
         # user_hash = 'debug_hash'
         self._user_hash = user_hash
@@ -78,6 +80,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             const.LAMBDA_HEAT_PUMP_MODE_RAW: "HEATING",
             const.LAMBDA_HOME_ASSISTANT_VERSION: const.VERSION,
             const.LAMBDA_ADDRESS: self._address,
+            const.LAMBDA_CITY: self._city,
         }
         self._lambda_update_handler = LambdaUpdateHandler(
             hass=self.hass,
@@ -88,6 +91,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             user_hash=self._user_hash,
             postcode=self._postcode,
             address=self._address,
+            city=self._city,
             tariff=self._tariff,
         )
 
@@ -347,6 +351,8 @@ class LambdaUpdateHandler:
         external_temp_entity_id,
         user_hash,
         postcode,
+        address,
+        city,
         tariff,
     ):
         """Init."""
@@ -357,6 +363,8 @@ class LambdaUpdateHandler:
         self.external_temp_entity_id = external_temp_entity_id
         self.user_hash = user_hash
         self.postcode = postcode
+        self.address = address
+        self.city = city
         self.tariff = tariff
         self.expire_time = datetime(
             1, 1, 1, 0, 0, 0, tzinfo=timezone.utc
@@ -558,8 +566,6 @@ class LambdaUpdateHandler:
         Calls lambda if new heating profile is needed
         Otherwise, slowly uploads historical data
         """
-        print("--------------------------------------")
-        print(lambda_args.keys())
         now = datetime.now(tz=timezone.utc)
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
@@ -569,12 +575,21 @@ class LambdaUpdateHandler:
                 await self.upload_old_history()
         return self.get_closest_time(lambda_args)
 
-    async def update_dynamo_dates(self):
+    async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""
+        # print(lambda_args.keys())
+        dynamo_data = {
+            "user_hash": self.user_hash,
+            "postcode": lambda_args["postcode"],
+            "address": lambda_args["address"],
+            "city": lambda_args["city"],
+        }
+        print("-----------------------------------------")
+        print(dynamo_data)
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
-        ) = await self.client.get_data_dates(dynamo_data={"user_hash": self.user_hash})
+        ) = await self.client.get_data_dates(dynamo_data=dynamo_data)
 
     async def update_ha_dates(self):
         """Get the oldest and newest dates in HA histories for active_entity_ids."""
@@ -629,7 +644,7 @@ class LambdaUpdateHandler:
         """
         LOGGER.debug(f"********** self.expire_time: {self.expire_time}")
         count = 0
-        await self.update_dynamo_dates()
+        await self.update_dynamo_dates(lambda_args)
         await self.update_ha_dates()
         while missing_entities := self.entities_with_data_missing_from_dynamo():
             count += 1

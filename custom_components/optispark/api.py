@@ -12,13 +12,17 @@ from datetime import datetime, timezone
 import pickle
 import gzip
 import base64
-from .const import LOGGER
+from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
 import traceback
 from http import HTTPStatus
 
-from .rest.auth.auth_service import AuthService
-from .rest.auth.model.login_response import LoginResponse
-from .rest.exception.exceptions import *
+from .domain.auth.auth_service import AuthService
+from .domain.auth.model.login_response import LoginResponse
+from .domain.exception.exceptions import *
+from .domain.location.location_service import LocationService
+from .domain.location.model.location_request import (
+    LocationRequest,
+)
 
 
 # class OptisparkApiClientError(Exception):
@@ -83,7 +87,10 @@ class OptisparkApiClient:
     """Optispark API Client."""
 
     _token: str | None
+    _has_locations: bool
+    _has_devices: bool
     _auth_service: AuthService
+    _location_service: LocationService
 
     def __init__(
         self,
@@ -92,7 +99,11 @@ class OptisparkApiClient:
         """Sample API Client."""
         self._session = session
         self._token = None
+        self._has_locations = False
+        self._has_devices = False
         self._auth_service = AuthService(session=session)
+        self._location_service = LocationService(session=session)
+        # self._config_service = ConfigurationService(config_file='./config/config.json')
 
     def datetime_set_utc(self, d: dict[str, datetime]):
         """Set the timezone of the datetime values to UTC."""
@@ -203,38 +214,6 @@ class OptisparkApiClient:
         payload = pickle.loads(payload)
         return payload
 
-    # async def _login(self, user_hash: str) -> LoginResponse:
-    #     # TODO: move to config
-    #     auth_url = "http://localhost:5000/auth/ha_login"
-    #     try:
-    #         payload = {"user_hash": user_hash}
-    #         response = await self._session.request(
-    #             method="post",
-    #             url=auth_url,
-    #             json=payload,
-    #         )
-    #
-    #         if response.status != HTTPStatus.OK:
-    #             raise OptisparkApiClientAuthenticationError(
-    #                 "Invalid credentials",
-    #             ) from Exception
-    #
-    #         json_response = await response.json()
-    #
-    #         return LoginResponse(
-    #             token=json_response["accessToken"],
-    #             token_type=json_response["tokenType"],
-    #             has_locations=json_response["hasLocations"],
-    #             has_devices=json_response["hasDevices"],
-    #         )
-    #
-    #     except:
-    #         raise OptisparkApiClientAuthenticationError(
-    #             "Invalid credentials",
-    #         ) from Exception
-
-    # async def _add_location(self):
-
     async def _api_wrapper(self, method: str, url: str, data: dict):
         """Call the Lambda function."""
         # ha: core.HomeAssistant = core.async_get_hass()
@@ -260,7 +239,28 @@ class OptisparkApiClient:
                             user_hash="user_hash"
                         )
                         self._token = loginResponse.token
+                        self._has_locations = loginResponse.has_locations
+                        self._has_devices = loginResponse.has_devices
                         LOGGER.debug(f" User token: {loginResponse.token}")
+
+                if not self._has_locations:
+                    info = data["dynamo_data"]
+                    location_request = LocationRequest(
+                        name="home",
+                        address=info["address"],
+                        zipcode=info["postcode"],
+                        city="",
+                        country="GB",
+                        tariff_id=1,
+                        tariff_params={
+                            "product_code": TARIFF_PRODUCT_CODE,
+                            "tariff_code": TARIFF_CODE,
+                        }
+                    )
+                    self._has_locations = await self._location_service.add_location(
+                        request=location_request,
+                        access_token=self._token
+                    )
 
                 response = await self._session.request(
                     method=method,

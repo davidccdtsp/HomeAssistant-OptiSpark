@@ -16,6 +16,7 @@
                     "username": "Username",
                     "address": "Address",
                     "postcode": "Postcode",
+                    "city": "City",
                     "climate_entity_id": "Heat pump",
                     "heat_pump_power_entity_id": "Power usage of heat pump",
                     "external_temp_entity_id": "(Optional) External house temperature"

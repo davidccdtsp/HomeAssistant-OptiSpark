@@ -21,6 +21,8 @@ LAMBDA_HOME_ASSISTANT_VERSION = 'home_assistant_version'
 LAMBDA_SET_POINT = 'temp_set_point'
 LAMBDA_TEMP_RANGE = 'temp_range'
 LAMBDA_POSTCODE = 'postcode'
+LAMBDA_ADDRESS = 'address'
+LAMBDA_CITY = 'city'
 LAMBDA_USER_HASH = 'user_hash'
 LAMBDA_INITIAL_INTERNAL_TEMP = 'initial_internal_temp'
 LAMBDA_OUTSIDE_RANGE = 'outside_range'
@@ -34,3 +36,6 @@ DATABASE_COLUMN_SENSOR_EXTERNAL_TEMPERATURE = 'external_temperature'
 DATABASE_COLUMN_SENSOR_CLIMATE_ENTITY = 'climate_entity'
 
 SWITCH_KEY = 'enable_optispark'
+
+TARIFF_PRODUCT_CODE = "AGILE-FLEX-22-11-25"
+TARIFF_CODE = "E-1R-AGILE-FLEX-22-11-25-A"

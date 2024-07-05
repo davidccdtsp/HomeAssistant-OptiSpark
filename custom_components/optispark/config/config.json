@@ -1,0 +1,8 @@
+{
+  "backend": {
+    "baseUrl": "http://localhost:5000",
+    "location": {
+      "base": "/location/"
+    }
+  }
+}

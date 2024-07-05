@@ -2,8 +2,8 @@ from http import HTTPStatus
 
 import aiohttp
 
-from custom_components.optispark.rest.auth.model.login_response import LoginResponse
-from custom_components.optispark.rest.exception.exceptions import OptisparkApiClientAuthenticationError
+from custom_components.optispark.domain.auth.model.login_response import LoginResponse
+from custom_components.optispark.domain.exception.exceptions import OptisparkApiClientAuthenticationError
 
 
 class AuthService:
