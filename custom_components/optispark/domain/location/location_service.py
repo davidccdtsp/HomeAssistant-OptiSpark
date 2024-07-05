@@ -58,3 +58,42 @@ class LocationService:
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
             raise
+
+    async def get_locations(self, access_token: str) -> [LocationResponse]:
+        """Get locations from OptiSpark backend"""
+        base_url = config_service.get("backend.baseUrl")
+        location_url = f'{base_url}{config_service.get("backend.location.base")}'
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
+        try:
+            response = await self._session.request(
+                method="get",
+                url=location_url,
+                headers=headers,
+            )
+
+            if response.status == HTTPStatus.UNAUTHORIZED:
+                raise OptisparkApiClientAuthenticationError(
+                    "Invalid credentials",
+                ) from Exception
+
+            if response.status != HTTPStatus.CREATED:
+                raise OptisparkApiClientLocationError(
+                    "Get locations error",
+                ) from Exception
+
+            jsonResponse = await response.json()
+            # return LocationResponse.from_json(jsonResponse)
+            locations = list(map(LocationResponse.from_json, jsonResponse))
+            # Filter out any None values in case of invalid JSON elements
+            return [location for location in locations if location is not None]
+
+        except aiohttp.ClientError as e:
+            print(f"HTTP error occurred: {e}")
+            raise OptisparkApiClientLocationError("Get locations error") from e
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+            raise
+
