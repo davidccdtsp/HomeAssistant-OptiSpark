@@ -20,6 +20,7 @@ from .domain.auth.auth_service import AuthService
 from .domain.auth.model.login_response import LoginResponse
 from .domain.device.device_service import DeviceService
 from .domain.device.model.device_request import DeviceRequest
+from .domain.device.model.device_response import DeviceResponse
 from .domain.exception.exceptions import *
 from .domain.location.location_service import LocationService
 from .domain.location.model.location_request import (
@@ -282,7 +283,7 @@ class OptisparkApiClient:
             user_hash = data["user_hash"]
             if user_hash:
                 loginResponse: LoginResponse = await self._auth_service.login(
-                    user_hash="user_hash"
+                    user_hash=user_hash
                 )
                 self._token = loginResponse.token
                 self._has_locations = loginResponse.has_locations
@@ -302,11 +303,11 @@ class OptisparkApiClient:
                     "tariff_code": TARIFF_CODE,
                 }
             )
-            location = await self._location_service.add_location(
+            location: LocationResponse | None = await self._location_service.add_location(
                 request=location_request,
                 access_token=self._token
             )
-            self.has_location = True if location else False
+            self._has_locations = True if location else False
         if not self._has_devices:
             if not location:
                 locations: [LocationResponse] = await self._location_service.get_locations(access_token=self._token)
@@ -320,7 +321,7 @@ class OptisparkApiClient:
                 version='version',
                 integration_params={}
             )
-            device_response = await self._device_service.add_device(
+            device_response: DeviceResponse | None = await self._device_service.add_device(
                 request=device_request,
                 access_token=self._token
             )

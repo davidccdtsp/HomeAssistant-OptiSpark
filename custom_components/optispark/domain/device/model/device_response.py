@@ -34,7 +34,7 @@ class DeviceResponse:
             return cls(
                 id=json["id"],
                 name=json["name"],
-                location_id=json["location"],
+                location_id=json["locationId"],
                 manufacturer=json["manufacturer"],
                 model_name=json["modelname"],
                 version=json["version"],
