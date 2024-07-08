@@ -28,6 +28,8 @@ from .domain.location.model.location_request import (
 )
 from .domain.location.model.location_response import LocationResponse
 
+import time
+import pytz
 
 # class OptisparkApiClientError(Exception):
 #     """Exception to indicate a general API error."""
@@ -138,64 +140,103 @@ class OptisparkApiClient:
 
         dynamo_data will only contain the user_hash.
         """
-        # auth_url = "http://localhost:5000/auth/ha_login"
-        # LOGGER.debug(auth_url)
-        # LOGGER.debug("***********************************************")
-        # LOGGER.debug(dynamo_data["user_hash"])
-
-        # # user_hash = dynamo_data["user_hash"]
-        # payload = {"user_hash": dynamo_data["user_hash"]}
-
-        # response = await self._session.request(
-        #     method="post",
-        #     url=auth_url,
-        #     json=payload,
-        # )
-
-        # print(response.status)
-        # res = await response.json()
-        # print(res["access_token"])
-        # token = res["access_token"]
-
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = "http://localhost:5000/home-assistant/data-dates"
-        payload = {"dynamo_data": dynamo_data}
-        payload["get_newest_oldest_data_date_only"] = True
-        payload["user_hash"] = dynamo_data["user_hash"]
-        # print(payload)
-        extra = await self._api_wrapper(
-            method="post",
-            url=lambda_url,
-            data=payload,
-        )
-        print(extra)
+        # lambda_url = "http://localhost:5000/home-assistant/data-dates"
+        # payload = {"dynamo_data": dynamo_data}
+        # payload["get_newest_oldest_data_date_only"] = True
+        # payload["user_hash"] = dynamo_data["user_hash"]
+        # # print(payload)
+        # extra = await self._api_wrapper(
+        #     method="post",
+        #     url=lambda_url,
+        #     data=payload,
+        # )
+        # oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
+        # newest_dates = self.datetime_set_utc(extra["newest_dates"])
+        #
+        # return oldest_dates, newest_dates
+
+        print("--------------------------")
+        print(dynamo_data)
+
+        tz = pytz.timezone("Europe/London")
+        todays_time = time.time()
+        current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
+        # yesterday = current - datetime.date.timedelta(days=1)
+        yesterday = datetime(year=2024, month=6, day=8)
+
+        extra = {
+            "oldest_dates": {
+                "heat_pump_power": yesterday,
+                "external_temperature": yesterday,
+                "climate_entity": yesterday,
+            },
+            "newest_dates": {
+                "heat_pump_power": current,
+                "external_temperature": current,
+                "climate_entity": current,
+            },
+        }
+
         oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
         newest_dates = self.datetime_set_utc(extra["newest_dates"])
 
         return oldest_dates, newest_dates
 
+
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = "http://localhost:5000/home-assistant/profile"
+        # lambda_url = "http://localhost:5000/home-assistant/profile"
+        #
+        # payload = lambda_args
+        # payload["get_profile_only"] = True
+        # LOGGER.debug("----------Lambda get profile----------")
+        # results, errors = await self._api_wrapper(
+        #     method="post",
+        #     url=lambda_url,
+        #     data=payload,
+        # )
+        # if errors["success"] is False:
+        #     LOGGER.debug(f'OptisparkApiClientLambdaError: {errors["error_message"]}')
+        #     raise OptisparkApiClientLambdaError(errors["error_message"])
+        # if results["optimised_cost"] == 0:
+        #     # Heating isn't active.  Should the savings be 0?
+        #     results["projected_percent_savings"] = 100
+        # else:
+        #     results["projected_percent_savings"] = (
+        #         results["base_cost"] / results["optimised_cost"] * 100 - 100
+        #     )
+        # return results
 
         payload = lambda_args
         payload["get_profile_only"] = True
+        print(lambda_args)
         LOGGER.debug("----------Lambda get profile----------")
-        results, errors = await self._api_wrapper(
-            method="post",
-            url=lambda_url,
-            data=payload,
-        )
-        if errors["success"] is False:
-            LOGGER.debug(f'OptisparkApiClientLambdaError: {errors["error_message"]}')
-            raise OptisparkApiClientLambdaError(errors["error_message"])
+        tz = pytz.timezone("Europe/London")
+        todays_time = time.time()
+        current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
+
+        results = {
+            "timestamp": [current],
+            "electricity_price": [10],
+            "base_power": [15],
+            "optimised_power": [10],
+            "optimised_internal_temp": [17],
+            "external_temp": [15],
+            "temp_controls": [2],
+            "dni": [10],
+            "total_cost_optimised": 1.3,
+            "base_cost": 1.0,
+            "optimised_cost": 2.0,
+        }
+
         if results["optimised_cost"] == 0:
             # Heating isn't active.  Should the savings be 0?
             results["projected_percent_savings"] = 100
         else:
             results["projected_percent_savings"] = (
-                results["base_cost"] / results["optimised_cost"] * 100 - 100
+                    results["base_cost"] / results["optimised_cost"] * 100 - 100
             )
         return results
 
