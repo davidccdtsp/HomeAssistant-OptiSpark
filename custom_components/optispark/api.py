@@ -271,6 +271,7 @@ class OptisparkApiClient:
             print('calling thermostat service')
             result = await self._thermostat_service.get_control(thermostat_id=thermostat_id, access_token=self._token)
             print(f'thermostat id: {result.thermostat_id}')
+            print(f'mode: {result.mode}')
 
 
     def json_serialisable(self, data):
