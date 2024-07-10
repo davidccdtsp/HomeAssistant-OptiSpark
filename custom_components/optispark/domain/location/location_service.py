@@ -49,8 +49,8 @@ class LocationService:
                     "Add location error",
                 ) from Exception
 
-            jsonResponse = await response.json()
-            return LocationResponse.from_json(jsonResponse)
+            json_response = await response.json()
+            return LocationResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
             print(f"HTTP error occurred: {e}")

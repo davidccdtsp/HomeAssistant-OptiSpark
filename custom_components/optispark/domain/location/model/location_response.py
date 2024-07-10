@@ -46,5 +46,9 @@ class LocationResponse:
                 tariff_params=json["tariffParams"],
                 thermostat_id=json["thermostatId"],
             )
-        except:
+        except KeyError as e:
+            print(f"Error: No key in JSON - {e}")
+            return None
+        except Exception as e:
+            print(f"Error: {e}")
             return None

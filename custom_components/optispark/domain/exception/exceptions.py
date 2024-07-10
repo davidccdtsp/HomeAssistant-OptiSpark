@@ -44,3 +44,7 @@ class OptisparkApiClientLocationError(OptisparkApiClientError):
 
 class OptisparkApiClientDeviceError(OptisparkApiClientError):
     """Exception to indicate an location error."""
+
+
+class OptisparkApiClientThermostatError(OptisparkApiClientError):
+    """Exception to indicate an thermostat error."""
