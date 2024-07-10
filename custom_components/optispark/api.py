@@ -35,6 +35,8 @@ from .domain.location.model.location_response import LocationResponse
 import time
 import pytz
 
+from .domain.thermostat.thermostat_service import ThermostatService
+
 # class OptisparkApiClientError(Exception):
 #     """Exception to indicate a general API error."""
 
@@ -119,6 +121,7 @@ class OptisparkApiClient:
         self._auth_service = AuthService(session=session)
         self._location_service = LocationService(session=session)
         self._device_service = DeviceService(session=session)
+        self._thermostat_service = ThermostatService(session=session)
         # self._config_service = ConfigurationService(config_file='./config/config.json')
         self._config_service: ConfigurationService = config_service
 
@@ -153,9 +156,9 @@ class OptisparkApiClient:
         # lambda_url = "http://localhost:5000/home-assistant/data-dates"
         # base_url = self._config_service.get(BACKEND_URL)
         # url = f'{baser_url}/'
-        # payload = {"dynamo_data": dynamo_data}
-        # payload["get_newest_oldest_data_date_only"] = True
-        # payload["user_hash"] = dynamo_data["user_hash"]
+        payload = {"dynamo_data": dynamo_data}
+        payload["get_newest_oldest_data_date_only"] = True
+        payload["user_hash"] = dynamo_data["user_hash"]
         # # print(payload)
         # extra = await self._api_wrapper(
         #     method="post",
@@ -168,7 +171,10 @@ class OptisparkApiClient:
         # return oldest_dates, newest_dates
 
         print("--------------------------")
-        print(dynamo_data)
+        # print(dynamo_data)
+        await self._login(payload)
+        await self.get_working_mode()
+
 
         tz = pytz.timezone("Europe/London")
         todays_time = time.time()
@@ -253,6 +259,7 @@ class OptisparkApiClient:
         return results
 
     async def get_working_mode(self):
+        print('get working mode')
         if not self._token:
             result = await self._auth_service.login(self._user_hash)
             if result:
@@ -261,6 +268,8 @@ class OptisparkApiClient:
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
+            print('calling thermostat service')
+            await self._thermostat_service.get_control(thermostat_id)
 
 
 
