@@ -566,6 +566,11 @@ class LambdaUpdateHandler:
         Calls lambda if new heating profile is needed
         Otherwise, slowly uploads historical data
         """
+
+        if not self._check_running_manual_mode():
+            LOGGER.debug('Request manual mode')
+            print('Request manual mode')
+
         now = datetime.now(tz=timezone.utc)
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
@@ -574,6 +579,12 @@ class LambdaUpdateHandler:
             if self.history_upload_complete is False:
                 await self.upload_old_history()
         return self.get_closest_time(lambda_args)
+
+    async def _check_running_manual_mode(self) -> bool:
+        now = datetime.now(tz=timezone.utc)
+        print(f'{now} - checking mode')
+        return True
+
 
     async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""

@@ -13,7 +13,9 @@ import pickle
 import gzip
 import base64
 
-from .configuration_service import ConfigurationService
+from homeassistant.core import async_get_hass, HomeAssistant
+
+from .configuration_service import ConfigurationService, config_service
 from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
 import traceback
 from http import HTTPStatus
@@ -96,6 +98,7 @@ class OptisparkApiClient:
     """Optispark API Client."""
 
     _token: str | None
+    _user_hash: str
     _has_locations: bool
     _has_devices: bool
     _auth_service: AuthService
@@ -105,16 +108,19 @@ class OptisparkApiClient:
     def __init__(
         self,
         session: aiohttp.ClientSession,
+        user_hash: str,
     ) -> None:
         """Sample API Client."""
         self._session = session
+        self._user_hash = user_hash
         self._token = None
         self._has_locations = False
         self._has_devices = False
         self._auth_service = AuthService(session=session)
         self._location_service = LocationService(session=session)
         self._device_service = DeviceService(session=session)
-        self._config_service = ConfigurationService(config_file='./config/config.json')
+        # self._config_service = ConfigurationService(config_file='./config/config.json')
+        self._config_service: ConfigurationService = config_service
 
     def datetime_set_utc(self, d: dict[str, datetime]):
         """Set the timezone of the datetime values to UTC."""
@@ -145,7 +151,8 @@ class OptisparkApiClient:
         """
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
         # lambda_url = "http://localhost:5000/home-assistant/data-dates"
-        # url = self._config_service.get(BACKEND_URL)
+        # base_url = self._config_service.get(BACKEND_URL)
+        # url = f'{baser_url}/'
         # payload = {"dynamo_data": dynamo_data}
         # payload["get_newest_oldest_data_date_only"] = True
         # payload["user_hash"] = dynamo_data["user_hash"]
@@ -244,6 +251,19 @@ class OptisparkApiClient:
                     results["base_cost"] / results["optimised_cost"] * 100 - 100
             )
         return results
+
+    async def get_working_mode(self):
+        if not self._token:
+            result = await self._auth_service.login(self._user_hash)
+            if result:
+                self._token = result.token
+
+        locations = await self._location_service.get_locations(self._token)
+        if locations[0]:
+            thermostat_id = locations[0].thermostat_id
+
+
+
 
     def json_serialisable(self, data):
         """Convert to compressed bytes so that data can be converted to json."""

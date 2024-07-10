@@ -6,6 +6,9 @@
     },
     "device": {
       "base": "/device/"
+    },
+    "thermostat": {
+      "control": "thermostat/{thermostat_id}/control"
     }
   }
 }

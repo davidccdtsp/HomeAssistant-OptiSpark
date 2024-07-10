@@ -20,7 +20,8 @@ class AuthService:
         self._config_service = ConfigurationService(config_file="./config/config.json")
 
     async def login(self, user_hash: str) -> LoginResponse:
-        auth_url = self._config_service.get("backend.baseUrl")
+        base_url = self._config_service.get("backend.baseUrl")
+        auth_url = f'{base_url}/auth/ha_login'
         try:
             payload = {"user_hash": user_hash}
             response = await self._session.request(

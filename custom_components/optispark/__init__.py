@@ -29,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator = OptisparkDataUpdateCoordinator(
         hass=hass,
-        client=OptisparkApiClient(session=async_get_clientsession(hass)),
+        client=OptisparkApiClient(session=async_get_clientsession(hass), user_hash=entry.data["user_hash"]),
         climate_entity_id=entry.data["climate_entity_id"],
         heat_pump_power_entity_id=entry.data["heat_pump_power_entity_id"],
         external_temp_entity_id=entry.data["external_temp_entity_id"],
