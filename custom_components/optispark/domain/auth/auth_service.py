@@ -2,11 +2,14 @@ from http import HTTPStatus
 
 import aiohttp
 
+from custom_components.optispark.configuration_service import ConfigurationService
 from custom_components.optispark.domain.auth.model.login_response import LoginResponse
 from custom_components.optispark.domain.exception.exceptions import OptisparkApiClientAuthenticationError
 
 
 class AuthService:
+
+    _config_service: ConfigurationService
 
     def __init__(
         self,
@@ -14,10 +17,10 @@ class AuthService:
     ) -> None:
         """Sample API Client."""
         self._session = session
+        self._config_service = ConfigurationService(config_file="./config/config.json")
 
     async def login(self, user_hash: str) -> LoginResponse:
-        # TODO: move to config
-        auth_url = "http://localhost:5000/auth/ha_login"
+        auth_url = self._config_service.get("backend.baseUrl")
         try:
             payload = {"user_hash": user_hash}
             response = await self._session.request(

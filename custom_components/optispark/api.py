@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 import pickle
 import gzip
 import base64
+
+from .configuration_service import ConfigurationService
 from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
 import traceback
 from http import HTTPStatus
@@ -58,6 +60,7 @@ import pytz
 # class OptisparkApiClientUnitError(OptisparkApiClientError):
 #     """Exception to indicate unit error."""
 
+BACKEND_URL = 'backend.url'
 
 def floats_to_decimal(obj):
     """Convert data types to those supported by DynamoDB."""
@@ -97,6 +100,7 @@ class OptisparkApiClient:
     _has_devices: bool
     _auth_service: AuthService
     _location_service: LocationService
+    _config_service: ConfigurationService
 
     def __init__(
         self,
@@ -110,7 +114,7 @@ class OptisparkApiClient:
         self._auth_service = AuthService(session=session)
         self._location_service = LocationService(session=session)
         self._device_service = DeviceService(session=session)
-        # self._config_service = ConfigurationService(config_file='./config/config.json')
+        self._config_service = ConfigurationService(config_file='./config/config.json')
 
     def datetime_set_utc(self, d: dict[str, datetime]):
         """Set the timezone of the datetime values to UTC."""
@@ -122,13 +126,12 @@ class OptisparkApiClient:
 
     async def upload_history(self, dynamo_data):
         """Upload historical data to dynamoDB without calculating heat pump profile."""
-        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        lambda_url = "http://localhost:5000/home-assistant/history"
+        url = self._config_service.get(BACKEND_URL)
         payload = {"dynamo_data": dynamo_data}
         payload["upload_only"] = True
         extra = await self._api_wrapper(
             method="post",
-            url=lambda_url,
+            url=url,
             data=payload,
         )
         oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
@@ -142,13 +145,14 @@ class OptisparkApiClient:
         """
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
         # lambda_url = "http://localhost:5000/home-assistant/data-dates"
+        # url = self._config_service.get(BACKEND_URL)
         # payload = {"dynamo_data": dynamo_data}
         # payload["get_newest_oldest_data_date_only"] = True
         # payload["user_hash"] = dynamo_data["user_hash"]
         # # print(payload)
         # extra = await self._api_wrapper(
         #     method="post",
-        #     url=lambda_url,
+        #     url=url,
         #     data=payload,
         # )
         # oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
@@ -188,13 +192,14 @@ class OptisparkApiClient:
         """Get heat pump profile only."""
         # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
         # lambda_url = "http://localhost:5000/home-assistant/profile"
+        # url = self._config_service.get(BACKEND_URL)
         #
         # payload = lambda_args
         # payload["get_profile_only"] = True
         # LOGGER.debug("----------Lambda get profile----------")
         # results, errors = await self._api_wrapper(
         #     method="post",
-        #     url=lambda_url,
+        #     url=url,
         #     data=payload,
         # )
         # if errors["success"] is False:
