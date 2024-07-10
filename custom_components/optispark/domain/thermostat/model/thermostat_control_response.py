@@ -1,11 +1,12 @@
 from typing import Optional
 
 from custom_components.optispark.domain.shared.model.working_mode import WorkingMode
+from custom_components.optispark.domain.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
 
-class ThermostatResponse:
+class ThermostatControlResponse:
     thermostat_id: int
-    status: str
+    status: ThermostatControlStatus
     mode: WorkingMode
     heat_set_point: float | None
     cool_set_point: float | None
@@ -13,7 +14,7 @@ class ThermostatResponse:
     def __init__(
         self,
         thermostat_id: int,
-        status: str,
+        status: ThermostatControlStatus,
         mode: WorkingMode,
         heat_set_point: Optional[float] = None,
         cool_set_point: Optional[float] = None
@@ -35,7 +36,7 @@ class ThermostatResponse:
                 heat_set_point = json['heatSetPoint']
             return cls(
                 thermostat_id=json['thermostatId'],
-                status=json['status'],
+                status=ThermostatControlStatus(json['status']),
                 mode=WorkingMode(json['mode']),
                 heat_set_point=heat_set_point,
                 cool_set_point=cool_set_point,

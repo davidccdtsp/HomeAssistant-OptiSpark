@@ -35,6 +35,9 @@ from .domain.location.model.location_response import LocationResponse
 import time
 import pytz
 
+from .domain.shared.model.working_mode import WorkingMode
+from .domain.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from .domain.thermostat.model.thermostat_control_status import ThermostatControlStatus
 from .domain.thermostat.thermostat_service import ThermostatService
 
 # class OptisparkApiClientError(Exception):
@@ -173,8 +176,9 @@ class OptisparkApiClient:
         print("--------------------------")
         # print(dynamo_data)
         await self._login(payload)
-        await self.get_working_mode()
-
+        control = await self.get_thermostat_control()
+        if not control.status == ThermostatControlStatus.MANUAL:
+            print(f'{control.status}')
 
         tz = pytz.timezone("Europe/London")
         todays_time = time.time()
@@ -258,7 +262,7 @@ class OptisparkApiClient:
             )
         return results
 
-    async def get_working_mode(self):
+    async def get_thermostat_control(self) -> ThermostatControlResponse:
         print('get working mode')
         if not self._token:
             result = await self._auth_service.login(self._user_hash)
@@ -269,9 +273,11 @@ class OptisparkApiClient:
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
             print('calling thermostat service')
-            result = await self._thermostat_service.get_control(thermostat_id=thermostat_id, access_token=self._token)
-            print(f'thermostat id: {result.thermostat_id}')
-            print(f'mode: {result.mode}')
+            control = await self._thermostat_service.get_control(thermostat_id=thermostat_id, access_token=self._token)
+            print(f'thermostat id: {control.thermostat_id}')
+            print(f'mode: {control.mode}')
+            print(f'mode: {control.status}')
+            return control
 
 
     def json_serialisable(self, data):
