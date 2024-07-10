@@ -37,9 +37,9 @@ class ThermostatService:
                     "Invalid credentials",
                 ) from Exception
 
-            if response.status != HTTPStatus.CREATED:
+            if response.status != HTTPStatus.OK:
                 raise OptisparkApiClientThermostatError(
-                    "Add location error",
+                    "Get thermostat control error",
                 ) from Exception
 
             json_response = await response.json()
