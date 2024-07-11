@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+from typing import List
 
 import aiohttp
 import async_timeout
@@ -41,6 +42,7 @@ from .infra.shared.model.working_mode import WorkingMode
 from .infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
 from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
 from .infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from .infra.thermostat.model.thermostat_prediction import ThermostatPrediction
 from .infra.thermostat.thermostat_service import ThermostatService
 
 # class OptisparkApiClientError(Exception):
@@ -114,6 +116,7 @@ class OptisparkApiClient:
     _auth_service: AuthService
     _location_service: LocationService
     _config_service: ConfigurationService
+    _thermostat_id: int
 
     def __init__(
             self,
@@ -175,43 +178,39 @@ class OptisparkApiClient:
                   f' {manual_control.cool_set_point}')
             return manual_control.status == ThermostatControlStatus.MANUAL
 
-
-    async def get_data_dates(self, dynamo_data: dict):
+    async def get_data_dates(self, thermostat_id: int):
         """Call lambda and only get the newest and oldest dates in dynamo.
-
         dynamo_data will only contain the user_hash.
         """
         print("--------------------------")
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
-        print(dynamo_data["user_hash"])
+        print(self._user_hash)
+        # Checks self._token, self._has_locations & self._has_devices
+        # and updates if necessary
+        await self._login()
+        # TODO: change this, store thermostat_id and add logic to update if necessary
         control = await self.get_thermostat_control()
-        if not control.status == ThermostatControlStatus.MANUAL:
-            LOGGER.debug(f'Control in {control.status} status, requesting manual')
-            print(f' {control.status} --> generating manual control request')
-            manual_control = await self.create_manual(
-                thermostat_id=control.thermostat_id,
-                set_point=dynamo_data["temp_set_point"],
-                mode=dynamo_data["heat_pump_mode_raw"]
-            )
-            print(f'Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/'
-                  f' {manual_control.cool_set_point}')
+        graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
+            access_token=self._token,
+            thermostat_id=control.thermostat_id
+        )
 
-        tz = pytz.timezone("Europe/London")
-        todays_time = time.time()
-        current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
-        # yesterday = current - datetime.date.timedelta(days=1)
-        yesterday = datetime(year=2024, month=6, day=8)
+        oldest_date = graph_data[-1].date
+        newest_date = graph_data[0].date
+
+        print(oldest_date)
+        print(newest_date)
 
         extra = {
             "oldest_dates": {
-                "heat_pump_power": yesterday,
-                "external_temperature": yesterday,
-                "climate_entity": yesterday,
+                "heat_pump_power": oldest_date,
+                "external_temperature": oldest_date,
+                "climate_entity": oldest_date,
             },
             "newest_dates": {
-                "heat_pump_power": current,
-                "external_temperature": current,
-                "climate_entity": current,
+                "heat_pump_power": newest_date,
+                "external_temperature": newest_date,
+                "climate_entity": newest_date,
             },
         }
 

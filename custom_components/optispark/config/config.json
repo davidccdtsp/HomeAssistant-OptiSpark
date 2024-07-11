@@ -1,4 +1,5 @@
 {
+  "hoursFromNow": 24,
   "backend": {
     "baseUrl": "http://localhost:5000",
     "location": {
@@ -9,7 +10,8 @@
     },
     "thermostat": {
       "control": "thermostat/{thermostat_id}/control",
-      "manual": "thermostat/{thermostat_id}/control/manual"
+      "manual": "thermostat/{thermostat_id}/control/manual",
+      "graph": "thermostat/{thermostat_id}/graph"
     }
   }
 }

@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import List
 
 import aiohttp
 
@@ -7,6 +8,7 @@ from custom_components.optispark.infra.exception.exceptions import OptisparkApiC
     OptisparkApiClientThermostatError
 from custom_components.optispark.infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
 from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.infra.thermostat.model.thermostat_prediction import ThermostatPrediction
 
 
 class ThermostatService:
@@ -88,6 +90,42 @@ class ThermostatService:
         except aiohttp.ClientError as e:
             print(f"HTTP error occurred: {e}")
             raise OptisparkApiClientThermostatError("post thermostat manual control error") from e
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+            raise
+
+    async def get_graph(self, thermostat_id:int, access_token: str) -> List[ThermostatPrediction]:
+        # Graph query param,
+        hours_from_now = config_service.get("hoursFromNow")
+        endpoint = config_service.get("backend.thermostat.graph")
+        graph_url = f'{self._base_url}/{endpoint}'.replace("{thermostat_id}", str(thermostat_id))
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+        }
+        try:
+            response = await self._session.get(
+                url=graph_url,
+                headers=headers,
+                params={'hours_from_now': hours_from_now}
+            )
+
+            if response.status == HTTPStatus.UNAUTHORIZED:
+                raise OptisparkApiClientAuthenticationError(
+                    "Invalid credentials",
+                ) from Exception
+
+            if response.status != HTTPStatus.OK:
+                raise OptisparkApiClientThermostatError(
+                    "Get graph error",
+                ) from Exception
+
+            json_array = await response.json()
+            return [ThermostatPrediction.from_json(item) for item in json_array]
+            # return ThermostatControlResponse.from_json(json_response)
+
+        except aiohttp.ClientError as e:
+            print(f"HTTP error occurred: {e}")
+            raise OptisparkApiClientThermostatError("get graph error") from e
         except Exception as e:
             print(f"Unexpected error occurred: {e}")
             raise

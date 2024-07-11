@@ -244,7 +244,7 @@ class BackendUpdateHandler:
         now = datetime.now(tz=timezone.utc)
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
-            await self.get_heating_profile(lambda_args)
+            await self.get_heating_profile(lambda_args, 1)
         else:
             if self.history_upload_complete is False:
                 await self.upload_old_history()
@@ -320,7 +320,7 @@ class BackendUpdateHandler:
         return entities_missing
         # return False
 
-    async def get_heating_profile(self, lambda_args):
+    async def get_heating_profile(self, lambda_args: dict, thermostat_id: int):
         """Fetch heating profile from Optispark Backend.
 
         Upload all new and missing data to dynamo first.
@@ -330,8 +330,13 @@ class BackendUpdateHandler:
         print(f'******************************** HEATING PROFILE ******************************************')
         LOGGER.debug(f"********** self.expire_time: {self.expire_time}")
         count = 0
-        await self.update_dynamo_dates(lambda_args)
-        await self.update_ha_dates()
+        # await self.update_dynamo_dates(lambda_args)
+        # await self.update_ha_dates()
+        (
+            self.dynamo_oldest_dates,
+            self.dynamo_newest_dates,
+        ) = await self.client.get_data_dates(thermostat_id=thermostat_id)
+
         while missing_entities := self.entities_with_data_missing_from_dynamo():
             count += 1
             LOGGER.debug(f"Updating dynamo with NEW data: round ({count})")
