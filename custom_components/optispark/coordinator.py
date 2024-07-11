@@ -589,11 +589,14 @@ class LambdaUpdateHandler:
     async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""
         # print(lambda_args.keys())
+        # TODO: create class
         dynamo_data = {
             "user_hash": self.user_hash,
             "postcode": lambda_args["postcode"],
             "address": lambda_args["address"],
             "city": lambda_args["city"],
+            "temp_set_point": lambda_args['temp_set_point'],
+            "heat_pump_mode_raw": lambda_args['heat_pump_mode_raw']
         }
         (
             self.dynamo_oldest_dates,

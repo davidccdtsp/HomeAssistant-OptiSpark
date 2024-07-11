@@ -69,7 +69,7 @@ class ThermostatService:
             response = await self._session.post(
                 url=thermostat_url,
                 headers=headers,
-                data=request.to_dict()
+                json=request.to_dict()
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:

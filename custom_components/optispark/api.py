@@ -172,6 +172,7 @@ class OptisparkApiClient:
         # return oldest_dates, newest_dates
 
         print("--------------------------")
+        # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
         print(payload["user_hash"])
         # print(dynamo_data)
         await self._login(payload)
@@ -179,9 +180,13 @@ class OptisparkApiClient:
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.debug(f'Control in {control.status} status, requesting manual')
             print(f' {control.status} --> generating manual control request')
-            manualControl = await self.create_manual(control.thermostat_id)
-            print(f'Created: {manualControl.status} - {manualControl.mode} - {manualControl.heat_set_point} -/'
-                  f' {manualControl.cool_set_point}')
+            manual_control = await self.create_manual(
+                thermostat_id=control.thermostat_id,
+                set_point=payload["temp_set_point"],
+                mode=payload["heat_pump_mode_raw"]
+            )
+            print(f'Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/'
+                  f' {manual_control.cool_set_point}')
 
         tz = pytz.timezone("Europe/London")
         todays_time = time.time()
@@ -282,11 +287,11 @@ class OptisparkApiClient:
             print(f'status: {control.status}')
             return control
 
-    async def create_manual(self, thermostat_id: int) -> ThermostatControlResponse:
+    async def create_manual(self, thermostat_id: int, set_point: float, mode: str) -> ThermostatControlResponse:
         request = ThermostatControlRequest(
-            mode=WorkingMode.HEAT_AND_COOL,
-            heat_set_point=17.5,
-            cool_set_point=21.5
+            mode=WorkingMode.from_string(mode),
+            heat_set_point=set_point,
+            cool_set_point=set_point
         )
         result = await self._thermostat_service.create_manual(
             thermostat_id=thermostat_id,
