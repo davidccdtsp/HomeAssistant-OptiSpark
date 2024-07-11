@@ -275,7 +275,7 @@ class BackendUpdateHandler:
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
-        ) = await self.client.get_data_dates(dynamo_data=dynamo_data)
+        ) = await self.client.get_data_dates()
 
     async def update_ha_dates(self):
         """Get the oldest and newest dates in HA histories for active_entity_ids."""
@@ -335,7 +335,7 @@ class BackendUpdateHandler:
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
-        ) = await self.client.get_data_dates(thermostat_id=thermostat_id)
+        ) = await self.client.get_data_dates()
         await self.update_ha_dates()
 
         while missing_entities := self.entities_with_data_missing_from_dynamo():
