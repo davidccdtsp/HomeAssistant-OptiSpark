@@ -61,6 +61,7 @@ class BackendUpdateHandler:
 
     def get_missing_histories_boundary(self, history_states, dynamo_date):
         """Get index where history_state matches dynamo_date."""
+        idx_bound = 0
         for idx, datum in enumerate(history_states):
             if datum.last_updated >= dynamo_date:
                 idx_bound = idx
@@ -330,12 +331,12 @@ class BackendUpdateHandler:
         print(f'******************************** HEATING PROFILE ******************************************')
         LOGGER.debug(f"********** self.expire_time: {self.expire_time}")
         count = 0
-        # await self.update_dynamo_dates(lambda_args)
-        # await self.update_ha_dates()
+        await self.update_dynamo_dates(lambda_args)
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
         ) = await self.client.get_data_dates(thermostat_id=thermostat_id)
+        await self.update_ha_dates()
 
         while missing_entities := self.entities_with_data_missing_from_dynamo():
             count += 1

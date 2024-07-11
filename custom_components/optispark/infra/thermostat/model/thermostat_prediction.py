@@ -10,9 +10,9 @@ class ThermostatPrediction:
     external_temperature: float
 
     def __init__(self, date: datetime, mode: WorkingMode, set_point: float,  external_temperature: float):
-        self._date = datetime
-        self._mode = mode
-        self._set_point = set_point
+        self.date = date
+        self.mode = mode
+        self.set_point = set_point
         self.external_temperature = external_temperature
 
     @classmethod

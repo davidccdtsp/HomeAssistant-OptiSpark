@@ -178,7 +178,7 @@ class OptisparkApiClient:
                   f' {manual_control.cool_set_point}')
             return manual_control.status == ThermostatControlStatus.MANUAL
 
-    async def get_data_dates(self, thermostat_id: int):
+    async def get_data_dates(self):
         """Call lambda and only get the newest and oldest dates in dynamo.
         dynamo_data will only contain the user_hash.
         """
