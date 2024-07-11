@@ -117,6 +117,8 @@ class OptisparkApiClient:
     _location_service: LocationService
     _config_service: ConfigurationService
     _thermostat_id: int
+    # This is temporal
+    _graph_data: dict
 
     def __init__(
             self,
@@ -190,13 +192,13 @@ class OptisparkApiClient:
         await self._login()
         # TODO: change this, store thermostat_id and add logic to update if necessary
         control = await self.get_thermostat_control()
-        graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
+        self._graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
             access_token=self._token,
             thermostat_id=control.thermostat_id
         )
 
-        oldest_date = graph_data[-1].date
-        newest_date = graph_data[0].date
+        oldest_date = self._graph_data[0].date
+        newest_date = self._graph_data[-1].date
 
         print(oldest_date)
         print(newest_date)
@@ -253,13 +255,22 @@ class OptisparkApiClient:
         todays_time = time.time()
         current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
 
+        if not self._graph_data:
+            await self._login()
+            # TODO: change this, store thermostat_id and add logic to update if necessary
+            control = await self.get_thermostat_control()
+            self._graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
+                access_token=self._token,
+                thermostat_id=control.thermostat_id
+            )
+
         results = {
-            "timestamp": [current],
+            "timestamp": [self._graph_data[0].date],
             "electricity_price": [10],
             "base_power": [15],
             "optimised_power": [10],
-            "optimised_internal_temp": [17],
-            "external_temp": [15],
+            "optimised_internal_temp": [self._graph_data[0].set_point],
+            "external_temp": [self._graph_data[0].set_point],
             "temp_controls": [2],
             "dni": [10],
             "total_cost_optimised": 1.3,
