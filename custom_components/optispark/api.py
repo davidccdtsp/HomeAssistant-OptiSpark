@@ -184,9 +184,6 @@ class OptisparkApiClient:
         print("--------------------------")
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
         print(dynamo_data["user_hash"])
-        # print(dynamo_data)
-        # print(dynamo_data)
-        # await self._login(payload)
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.debug(f'Control in {control.status} status, requesting manual')
