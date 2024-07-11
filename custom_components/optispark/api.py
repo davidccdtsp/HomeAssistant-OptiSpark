@@ -20,26 +20,28 @@ from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
 import traceback
 from http import HTTPStatus
 
-from .domain.auth.auth_service import AuthService
-from .domain.auth.model.login_response import LoginResponse
-from .domain.device.device_service import DeviceService
-from .domain.device.model.device_request import DeviceRequest
-from .domain.device.model.device_response import DeviceResponse
-from .domain.exception.exceptions import *
-from .domain.location.location_service import LocationService
-from .domain.location.model.location_request import (
+from .domain.value_object.address import Address
+from .domain.value_object.control_info import ControlInfo
+from .infra.auth.auth_service import AuthService
+from .infra.auth.model.login_response import LoginResponse
+from .infra.device.device_service import DeviceService
+from .infra.device.model.device_request import DeviceRequest
+from .infra.device.model.device_response import DeviceResponse
+from .infra.exception.exceptions import *
+from .infra.location.location_service import LocationService
+from .infra.location.model.location_request import (
     LocationRequest,
 )
-from .domain.location.model.location_response import LocationResponse
+from .infra.location.model.location_response import LocationResponse
 
 import time
 import pytz
 
-from .domain.shared.model.working_mode import WorkingMode
-from .domain.thermostat.model.thermostat_control_request import ThermostatControlRequest
-from .domain.thermostat.model.thermostat_control_response import ThermostatControlResponse
-from .domain.thermostat.model.thermostat_control_status import ThermostatControlStatus
-from .domain.thermostat.thermostat_service import ThermostatService
+from .infra.shared.model.working_mode import WorkingMode
+from .infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
+from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from .infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from .infra.thermostat.thermostat_service import ThermostatService
 
 # class OptisparkApiClientError(Exception):
 #     """Exception to indicate a general API error."""
@@ -69,6 +71,7 @@ from .domain.thermostat.thermostat_service import ThermostatService
 #     """Exception to indicate unit error."""
 
 BACKEND_URL = 'backend.url'
+
 
 def floats_to_decimal(obj):
     """Convert data types to those supported by DynamoDB."""
@@ -107,18 +110,21 @@ class OptisparkApiClient:
     _user_hash: str
     _has_locations: bool
     _has_devices: bool
+    _address: Address
     _auth_service: AuthService
     _location_service: LocationService
     _config_service: ConfigurationService
 
     def __init__(
-        self,
-        session: aiohttp.ClientSession,
-        user_hash: str,
+            self,
+            session: aiohttp.ClientSession,
+            user_hash: str,
+            address: Address
     ) -> None:
         """Sample API Client."""
         self._session = session
         self._user_hash = user_hash
+        self._address = address
         self._token = None
         self._has_locations = False
         self._has_devices = False
@@ -151,39 +157,44 @@ class OptisparkApiClient:
         newest_dates = self.datetime_set_utc(extra["newest_dates"])
         return oldest_dates, newest_dates
 
+    # async def check_and_set_manual(self, data: dict):
+
+    async def check_and_set_manual(self, data: ControlInfo) -> bool:
+        """Checks if optispark is running in manual, if not set manual mode"""
+
+        control = await self.get_thermostat_control()
+        if not control.status == ThermostatControlStatus.MANUAL:
+            LOGGER.debug(f'Control in {control.status} status, requesting manual change...')
+            print(f' {control.status} --> generating manual control request')
+            manual_control = await self.create_manual(
+                thermostat_id=control.thermostat_id,
+                set_point=data.set_point,
+                mode=data.mode
+            )
+            print(f'Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/'
+                  f' {manual_control.cool_set_point}')
+            return manual_control.status == ThermostatControlStatus.MANUAL
+
 
     async def get_data_dates(self, dynamo_data: dict):
         """Call lambda and only get the newest and oldest dates in dynamo.
 
         dynamo_data will only contain the user_hash.
         """
-        payload = {"dynamo_data": dynamo_data}
-        payload["get_newest_oldest_data_date_only"] = True
-        payload["user_hash"] = dynamo_data["user_hash"]
-        # # print(payload)
-        # extra = await self._api_wrapper(
-        #     method="post",
-        #     url=url,
-        #     data=payload,
-        # )
-        # oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
-        # newest_dates = self.datetime_set_utc(extra["newest_dates"])
-        #
-        # return oldest_dates, newest_dates
-
         print("--------------------------")
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
-        print(payload["user_hash"])
+        print(dynamo_data["user_hash"])
         # print(dynamo_data)
-        await self._login(payload)
+        # print(dynamo_data)
+        # await self._login(payload)
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.debug(f'Control in {control.status} status, requesting manual')
             print(f' {control.status} --> generating manual control request')
             manual_control = await self.create_manual(
                 thermostat_id=control.thermostat_id,
-                set_point=payload["temp_set_point"],
-                mode=payload["heat_pump_mode_raw"]
+                set_point=dynamo_data["temp_set_point"],
+                mode=dynamo_data["heat_pump_mode_raw"]
             )
             print(f'Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/'
                   f' {manual_control.cool_set_point}')
@@ -211,7 +222,6 @@ class OptisparkApiClient:
         newest_dates = self.datetime_set_utc(extra["newest_dates"])
 
         return oldest_dates, newest_dates
-
 
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
@@ -273,9 +283,7 @@ class OptisparkApiClient:
     async def get_thermostat_control(self) -> ThermostatControlResponse:
         print('get working mode')
         if not self._token:
-            result = await self._auth_service.login(self._user_hash)
-            if result:
-                self._token = result.token
+            await self._login()
 
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
@@ -300,7 +308,6 @@ class OptisparkApiClient:
         )
         return result
 
-
     def json_serialisable(self, data):
         """Convert to compressed bytes so that data can be converted to json."""
         uncompressed_data = pickle.dumps(data)
@@ -323,6 +330,11 @@ class OptisparkApiClient:
 
     async def _api_wrapper(self, method: str, url: str, data: dict):
         """Call the Lambda function."""
+
+        if not self._token:
+            # If user is not logged perform login process
+            await self._login()
+
         try:
             if "dynamo_data" in data:
                 data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
@@ -378,27 +390,31 @@ class OptisparkApiClient:
                 "Something really wrong happened!"
             ) from exception
 
-    async def _login(self, data):
+    async def _login(self):
+        """
+        Makes home asssistant login into OptiSpark backend.
+        checks if user has locations and devices
+        if not create locataion and device
+         """
         LOGGER.debug(f" Initiating login into OptiSpark backend")
         location: LocationResponse | None = None
         if not self._token:
-            user_hash = data["user_hash"]
-            if user_hash:
+            # user_hash = data["user_hash"]
+            if self._user_hash:
                 loginResponse: LoginResponse = await self._auth_service.login(
-                    user_hash=user_hash
+                    user_hash=self._user_hash
                 )
                 self._token = loginResponse.token
                 self._has_locations = loginResponse.has_locations
                 self._has_devices = loginResponse.has_devices
                 LOGGER.debug(f" User token: {loginResponse.token}")
         if not self._has_locations:
-            info = data["dynamo_data"]
             location_request = LocationRequest(
                 name="home",
-                address=info["address"],
-                zipcode=info["postcode"],
-                city="",
-                country="GB",
+                address=self._address.address,
+                zipcode=self._address.postcode,
+                city=self._address.city,
+                country=self._address.country,
                 tariff_id=1,
                 tariff_params={
                     "product_code": TARIFF_PRODUCT_CODE,

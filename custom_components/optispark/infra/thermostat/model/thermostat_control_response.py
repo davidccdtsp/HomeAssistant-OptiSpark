@@ -1,7 +1,7 @@
 from typing import Optional
 
-from custom_components.optispark.domain.shared.model.working_mode import WorkingMode
-from custom_components.optispark.domain.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
+from custom_components.optispark.infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
 
 class ThermostatControlResponse:

@@ -3,10 +3,10 @@ from http import HTTPStatus
 import aiohttp
 
 from custom_components.optispark.configuration_service import ConfigurationService, config_service
-from custom_components.optispark.domain.exception.exceptions import OptisparkApiClientAuthenticationError, \
+from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError, \
     OptisparkApiClientThermostatError
-from custom_components.optispark.domain.thermostat.model.thermostat_control_request import ThermostatControlRequest
-from custom_components.optispark.domain.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
+from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
 
 
 class ThermostatService:

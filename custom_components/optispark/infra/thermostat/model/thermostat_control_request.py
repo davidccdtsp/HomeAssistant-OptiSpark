@@ -1,6 +1,6 @@
 from typing import Optional
 
-from custom_components.optispark.domain.shared.model.working_mode import WorkingMode
+from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
 
 
 class ThermostatControlRequest:

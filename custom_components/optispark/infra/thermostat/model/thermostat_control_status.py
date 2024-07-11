@@ -1,4 +1,4 @@
-from custom_components.optispark.domain.shared.model.base_enum import BaseEnum
+from custom_components.optispark.infra.shared.model.base_enum import BaseEnum
 
 
 class ThermostatControlStatus(str, BaseEnum):

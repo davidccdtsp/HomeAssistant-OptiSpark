@@ -3,14 +3,14 @@ from http import HTTPStatus
 import aiohttp
 
 from custom_components.optispark.configuration_service import config_service
-from custom_components.optispark.domain.exception.exceptions import (
+from custom_components.optispark.infra.exception.exceptions import (
     OptisparkApiClientAuthenticationError,
     OptisparkApiClientLocationError,
 )
-from custom_components.optispark.domain.location.model.location_request import (
+from custom_components.optispark.infra.location.model.location_request import (
     LocationRequest,
 )
-from custom_components.optispark.domain.location.model.location_response import LocationResponse
+from custom_components.optispark.infra.location.model.location_response import LocationResponse
 
 
 class LocationService:

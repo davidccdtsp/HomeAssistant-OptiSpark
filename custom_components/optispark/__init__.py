@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import OptisparkApiClient
 from .const import DOMAIN, LOGGER
+from .domain.value_object.address import Address
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -24,12 +25,24 @@ PLATFORMS: list[Platform] = [
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up this integration using UI."""
-    from .coordinator import OptisparkDataUpdateCoordinator  # Prevent circular import
+    from .backend_update_handler import BackendUpdateHandler  # Prevent circular import
+    from .coordinator import OptisparkDataUpdateCoordinator
+
+    address = Address(
+        address=entry.data["address"],
+        postcode=entry.data["postcode"],
+        city=entry.data["city"],
+        country=entry.data["country"]
+    )
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator = OptisparkDataUpdateCoordinator(
         hass=hass,
-        client=OptisparkApiClient(session=async_get_clientsession(hass), user_hash=entry.data["user_hash"]),
+        client=OptisparkApiClient(
+            session=async_get_clientsession(hass),
+            user_hash=entry.data["user_hash"],
+            address=address
+        ),
         climate_entity_id=entry.data["climate_entity_id"],
         heat_pump_power_entity_id=entry.data["heat_pump_power_entity_id"],
         external_temp_entity_id=entry.data["external_temp_entity_id"],
