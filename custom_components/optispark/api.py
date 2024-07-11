@@ -36,6 +36,7 @@ import time
 import pytz
 
 from .domain.shared.model.working_mode import WorkingMode
+from .domain.thermostat.model.thermostat_control_request import ThermostatControlRequest
 from .domain.thermostat.model.thermostat_control_response import ThermostatControlResponse
 from .domain.thermostat.model.thermostat_control_status import ThermostatControlStatus
 from .domain.thermostat.thermostat_service import ThermostatService
@@ -150,15 +151,12 @@ class OptisparkApiClient:
         newest_dates = self.datetime_set_utc(extra["newest_dates"])
         return oldest_dates, newest_dates
 
+
     async def get_data_dates(self, dynamo_data: dict):
         """Call lambda and only get the newest and oldest dates in dynamo.
 
         dynamo_data will only contain the user_hash.
         """
-        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        # lambda_url = "http://localhost:5000/home-assistant/data-dates"
-        # base_url = self._config_service.get(BACKEND_URL)
-        # url = f'{baser_url}/'
         payload = {"dynamo_data": dynamo_data}
         payload["get_newest_oldest_data_date_only"] = True
         payload["user_hash"] = dynamo_data["user_hash"]
@@ -174,11 +172,16 @@ class OptisparkApiClient:
         # return oldest_dates, newest_dates
 
         print("--------------------------")
+        print(payload["user_hash"])
         # print(dynamo_data)
         await self._login(payload)
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
-            print(f'{control.status}')
+            LOGGER.debug(f'Control in {control.status} status, requesting manual')
+            print(f' {control.status} --> generating manual control request')
+            manualControl = await self.create_manual(control.thermostat_id)
+            print(f'Created: {manualControl.status} - {manualControl.mode} - {manualControl.heat_set_point} -/'
+                  f' {manualControl.cool_set_point}')
 
         tz = pytz.timezone("Europe/London")
         todays_time = time.time()
@@ -272,12 +275,25 @@ class OptisparkApiClient:
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
-            print('calling thermostat service')
+            LOGGER.debug(f'Getting thermostat control mode')
             control = await self._thermostat_service.get_control(thermostat_id=thermostat_id, access_token=self._token)
             print(f'thermostat id: {control.thermostat_id}')
             print(f'mode: {control.mode}')
-            print(f'mode: {control.status}')
+            print(f'status: {control.status}')
             return control
+
+    async def create_manual(self, thermostat_id: int) -> ThermostatControlResponse:
+        request = ThermostatControlRequest(
+            mode=WorkingMode.HEAT_AND_COOL,
+            heat_set_point=17.5,
+            cool_set_point=21.5
+        )
+        result = await self._thermostat_service.create_manual(
+            thermostat_id=thermostat_id,
+            request=request,
+            access_token=self._token
+        )
+        return result
 
 
     def json_serialisable(self, data):

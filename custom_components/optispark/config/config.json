@@ -8,7 +8,8 @@
       "base": "/device/"
     },
     "thermostat": {
-      "control": "thermostat/{thermostat_id}/control"
+      "control": "thermostat/{thermostat_id}/control",
+      "manual": "thermostat/{thermostat_id}/control/manual"
     }
   }
 }
