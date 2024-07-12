@@ -21,7 +21,7 @@ class LocationService:
         """Sample API Client."""
         self._session = session
         self._base_url = config_service.get("backend.baseUrl")
-        self._ssl = config_service.get('verifySSL', default=True)
+        self._ssl = config_service.get('backend.verifySSL', default=True)
 
     async def add_location(self, request: LocationRequest, access_token: str) -> LocationResponse | None:
         """Add new location"""

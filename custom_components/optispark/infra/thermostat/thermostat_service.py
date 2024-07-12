@@ -21,7 +21,7 @@ class ThermostatService:
         self._session = session
         self._config_service: ConfigurationService = config_service
         self._base_url = config_service.get("backend.baseUrl")
-        self._ssl = config_service.get("verifySSL")
+        self._ssl = config_service.get("backend.verifySSL")
 
     async def get_control(self, thermostat_id: int, access_token: str) -> ThermostatControlResponse:
         endpoint = config_service.get("backend.thermostat.control")
@@ -62,7 +62,7 @@ class ThermostatService:
             request: ThermostatControlRequest,
             access_token: str
     ) -> ThermostatControlResponse:
-        ssl = config_service.get('verifySSL', default=True)
+        ssl = config_service.get('backend.verifySSL', default=True)
         endpoint = config_service.get("backend.thermostat.manual")
         thermostat_url = f'{self._base_url}/{endpoint}'.replace("{thermostat_id}", str(thermostat_id))
         headers = {

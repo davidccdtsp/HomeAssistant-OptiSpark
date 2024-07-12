@@ -16,7 +16,7 @@ class AuthService:
         """Sample API Client."""
         self._session = session
         self._base_url = config_service.get('backend.baseUrl')
-        self._ssl = config_service.get('verifySSL', default=True)
+        self._ssl = config_service.get('backend.verifySSL', default=True)
 
     async def login(self, user_hash: str) -> LoginResponse:
         auth_url = f'{self._base_url}/auth/ha_login'
