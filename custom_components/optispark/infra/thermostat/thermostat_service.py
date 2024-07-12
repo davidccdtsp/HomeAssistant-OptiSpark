@@ -97,7 +97,7 @@ class ThermostatService:
             print(f"Unexpected error occurred: {e}")
             raise
 
-    async def get_graph(self, thermostat_id:int, access_token: str) -> List[ThermostatPrediction]:
+    async def get_graph(self, thermostat_id: int, access_token: str) -> List[ThermostatPrediction]:
         # Graph query param,
         hours_from_now = config_service.get("hoursFromNow")
         endpoint = config_service.get("backend.thermostat.graph")

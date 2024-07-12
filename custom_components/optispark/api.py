@@ -408,13 +408,13 @@ class OptisparkApiClient:
         if not self._token:
             # user_hash = data["user_hash"]
             if self._user_hash:
-                loginResponse: LoginResponse = await self._auth_service.login(
+                login_response: LoginResponse = await self._auth_service.login(
                     user_hash=self._user_hash
                 )
-                self._token = loginResponse.token
-                self._has_locations = loginResponse.has_locations
-                self._has_devices = loginResponse.has_devices
-                LOGGER.debug(f" User token: {loginResponse.token}")
+                self._token = login_response.token
+                self._has_locations = login_response.has_locations
+                self._has_devices = login_response.has_devices
+                LOGGER.debug(f" User token: {login_response.token}")
         if not self._has_locations:
             location_request = LocationRequest(
                 name="home",
