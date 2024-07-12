@@ -20,23 +20,24 @@ class LocationService:
     ) -> None:
         """Sample API Client."""
         self._session = session
+        self._base_url = config_service.get("backend.baseUrl")
+        self._ssl = config_service.get('verifySSL', default=True)
 
     async def add_location(self, request: LocationRequest, access_token: str) -> LocationResponse | None:
         """Add new location"""
 
-        base_url = config_service.get("backend.baseUrl")
-        location_url = f'{base_url}{config_service.get("backend.location.base")}'
+        location_url = f'{self._base_url}{config_service.get("backend.location.base")}'
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
 
         try:
-            response = await self._session.request(
-                method="post",
+            response = await self._session.post(
                 url=location_url,
                 headers=headers,
                 json=request.payload(),
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:
@@ -61,17 +62,16 @@ class LocationService:
 
     async def get_locations(self, access_token: str) -> [LocationResponse]:
         """Get locations from OptiSpark backend"""
-        base_url = config_service.get("backend.baseUrl")
-        location_url = f'{base_url}{config_service.get("backend.location.base")}'
+        location_url = f'{self._base_url}{config_service.get("backend.location.base")}'
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
 
         try:
-            response = await self._session.request(
-                method="get",
+            response = await self._session.get(
                 url=location_url,
                 headers=headers,
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:
@@ -84,9 +84,8 @@ class LocationService:
                     "Get locations error",
                 ) from Exception
 
-            jsonResponse = await response.json()
-            # return LocationResponse.from_json(jsonResponse)
-            locations = list(map(LocationResponse.from_json, jsonResponse))
+            json_response = await response.json()
+            locations = list(map(LocationResponse.from_json, json_response))
             # Filter out any None values in case of invalid JSON elements
             return [location for location in locations if location is not None]
 

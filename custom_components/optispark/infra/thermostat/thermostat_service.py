@@ -21,6 +21,7 @@ class ThermostatService:
         self._session = session
         self._config_service: ConfigurationService = config_service
         self._base_url = config_service.get("backend.baseUrl")
+        self._ssl = config_service.get("verifySSL")
 
     async def get_control(self, thermostat_id: int, access_token: str) -> ThermostatControlResponse:
         endpoint = config_service.get("backend.thermostat.control")
@@ -30,9 +31,9 @@ class ThermostatService:
         }
         try:
             response = await self._session.get(
-                # method="get",
                 url=thermostat_url,
                 headers=headers,
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:
@@ -61,6 +62,7 @@ class ThermostatService:
             request: ThermostatControlRequest,
             access_token: str
     ) -> ThermostatControlResponse:
+        ssl = config_service.get('verifySSL', default=True)
         endpoint = config_service.get("backend.thermostat.manual")
         thermostat_url = f'{self._base_url}/{endpoint}'.replace("{thermostat_id}", str(thermostat_id))
         headers = {
@@ -71,7 +73,8 @@ class ThermostatService:
             response = await self._session.post(
                 url=thermostat_url,
                 headers=headers,
-                json=request.to_dict()
+                json=request.to_dict(),
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:
@@ -106,7 +109,8 @@ class ThermostatService:
             response = await self._session.get(
                 url=graph_url,
                 headers=headers,
-                params={'hours_from_now': hours_from_now}
+                params={'hours_from_now': hours_from_now},
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:

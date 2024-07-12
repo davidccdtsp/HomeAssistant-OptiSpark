@@ -18,20 +18,22 @@ class DeviceService:
     ) -> None:
         """Sample API Client."""
         self._session = session
+        self._base_url = config_service.get("backend.baseUrl")
+        self._ssl = config_service.get('verifySSL', default=True)
 
     async def add_device(self, request: DeviceRequest, access_token: str) -> DeviceResponse | None:
-        base_url = config_service.get("backend.baseUrl")
-        device_url = f'{base_url}{config_service.get("backend.device.base")}'
+
+        device_url = f'{self._base_url}{config_service.get("backend.device.base")}'
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
         try:
-            response: ClientResponse = await self._session.request(
-                method="post",
+            response: ClientResponse = await self._session.post(
                 url=device_url,
                 headers=headers,
                 json=request.payload(),
+                ssl=self._ssl
             )
 
             if response.status == HTTPStatus.UNAUTHORIZED:
@@ -44,8 +46,8 @@ class DeviceService:
                     "Add device error",
                 ) from Exception
 
-            jsonResponse = await response.json()
-            return DeviceResponse.from_json(jsonResponse)
+            json_response = await response.json()
+            return DeviceResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
             print(f"HTTP error occurred: {e}")

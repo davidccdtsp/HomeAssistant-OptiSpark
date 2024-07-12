@@ -2,14 +2,12 @@ from http import HTTPStatus
 
 import aiohttp
 
-from custom_components.optispark.configuration_service import ConfigurationService
+from custom_components.optispark.configuration_service import config_service
 from custom_components.optispark.infra.auth.model.login_response import LoginResponse
 from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError
 
 
 class AuthService:
-
-    _config_service: ConfigurationService
 
     def __init__(
         self,
@@ -17,17 +15,17 @@ class AuthService:
     ) -> None:
         """Sample API Client."""
         self._session = session
-        self._config_service = ConfigurationService(config_file="./config/config.json")
+        self._base_url = config_service.get('backend.baseUrl')
+        self._ssl = config_service.get('verifySSL', default=True)
 
     async def login(self, user_hash: str) -> LoginResponse:
-        base_url = self._config_service.get("backend.baseUrl")
-        auth_url = f'{base_url}/auth/ha_login'
+        auth_url = f'{self._base_url}/auth/ha_login'
         try:
             payload = {"user_hash": user_hash}
-            response = await self._session.request(
-                method="post",
+            response = await self._session.post(
                 url=auth_url,
                 json=payload,
+                ssl=self._ssl
             )
 
             if response.status != HTTPStatus.OK:
@@ -44,7 +42,12 @@ class AuthService:
                 has_devices=json_response["hasDevices"],
             )
 
-        except:
+        except aiohttp.ClientError as e:
+            print(f"HTTP error occurred: {e}")
             raise OptisparkApiClientAuthenticationError(
                 "Invalid credentials",
-            ) from Exception
+            ) from e
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+            raise
+        
