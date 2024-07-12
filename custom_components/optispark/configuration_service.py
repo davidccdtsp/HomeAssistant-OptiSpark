@@ -5,6 +5,7 @@ import os
 class ConfigurationService:
     _instance = None
     _initialized = False
+    _cache = {}
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -37,12 +38,16 @@ class ConfigurationService:
         if not ConfigurationService._initialized:
             raise Exception("ConfigurationService must be initialized with a config file before use.")
 
+        if path in ConfigurationService._cache:
+            return ConfigurationService._cache[path]
+
         keys = path.split('.')
         data = self.config_data
         for key in keys:
             data = data.get(key, {})
             if data == {}:
                 break
+        ConfigurationService._cache[path] = data
         return data
 
 
