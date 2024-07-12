@@ -40,7 +40,9 @@ import pytz
 
 from .infra.shared.model.working_mode import WorkingMode
 from .infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
-from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from .infra.thermostat.model.thermostat_control_response import (
+    ThermostatControlResponse,
+)
 from .infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
 from .infra.thermostat.model.thermostat_prediction import ThermostatPrediction
 from .infra.thermostat.thermostat_service import ThermostatService
@@ -72,7 +74,7 @@ from .infra.thermostat.thermostat_service import ThermostatService
 # class OptisparkApiClientUnitError(OptisparkApiClientError):
 #     """Exception to indicate unit error."""
 
-BACKEND_URL = 'backend.url'
+BACKEND_URL = "backend.url"
 
 
 def floats_to_decimal(obj):
@@ -121,10 +123,7 @@ class OptisparkApiClient:
     _graph_data: dict
 
     def __init__(
-            self,
-            session: aiohttp.ClientSession,
-            user_hash: str,
-            address: Address
+        self, session: aiohttp.ClientSession, user_hash: str, address: Address
     ) -> None:
         """Sample API Client."""
         self._session = session
@@ -169,15 +168,19 @@ class OptisparkApiClient:
 
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
-            LOGGER.debug(f'Control in {control.status} status, requesting manual change...')
-            print(f' {control.status} --> generating manual control request')
+            LOGGER.debug(
+                f"Control in {control.status} status, requesting manual change..."
+            )
+            print(f" {control.status} --> generating manual control request")
             manual_control = await self.create_manual(
                 thermostat_id=control.thermostat_id,
                 set_point=data.set_point,
-                mode=data.mode
+                mode=data.mode,
             )
-            print(f'Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/'
-                  f' {manual_control.cool_set_point}')
+            print(
+                f"Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/"
+                f" {manual_control.cool_set_point}"
+            )
             return manual_control.status == ThermostatControlStatus.MANUAL
 
     async def get_data_dates(self):
@@ -192,9 +195,10 @@ class OptisparkApiClient:
         await self._login()
         # TODO: change this, store thermostat_id and add logic to update if necessary
         control = await self.get_thermostat_control()
-        self._graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
-            access_token=self._token,
-            thermostat_id=control.thermostat_id
+        self._graph_data: List[
+            ThermostatPrediction
+        ] = await self._thermostat_service.get_graph(
+            access_token=self._token, thermostat_id=control.thermostat_id
         )
 
         oldest_date = self._graph_data[0].date
@@ -259,9 +263,15 @@ class OptisparkApiClient:
             await self._login()
             # TODO: change this, store thermostat_id and add logic to update if necessary
             control = await self.get_thermostat_control()
-            self._graph_data: List[ThermostatPrediction] = await self._thermostat_service.get_graph(
-                access_token=self._token,
-                thermostat_id=control.thermostat_id
+            self._graph_data: List[
+                ThermostatPrediction
+            ] = await self._thermostat_service.get_graph(
+                access_token=self._token, thermostat_id=control.thermostat_id
+            )
+
+        if self._graph_data[0].date.tzinfo is None:
+            self._graph_data[0].date = self._graph_data[0].date.replace(
+                tzinfo=timezone.utc
             )
 
         results = {
@@ -283,35 +293,39 @@ class OptisparkApiClient:
             results["projected_percent_savings"] = 100
         else:
             results["projected_percent_savings"] = (
-                    results["base_cost"] / results["optimised_cost"] * 100 - 100
+                results["base_cost"] / results["optimised_cost"] * 100 - 100
             )
         return results
 
     async def get_thermostat_control(self) -> ThermostatControlResponse:
-        print('get working mode')
+        print("get working mode")
         if not self._token:
             await self._login()
 
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
-            LOGGER.debug(f'Getting thermostat control mode')
-            control = await self._thermostat_service.get_control(thermostat_id=thermostat_id, access_token=self._token)
-            print(f'thermostat id: {control.thermostat_id}')
-            print(f'mode: {control.mode}')
-            print(f'status: {control.status}')
+            LOGGER.debug(f"Getting thermostat control mode")
+            control = await self._thermostat_service.get_control(
+                thermostat_id=thermostat_id, access_token=self._token
+            )
+            print(f"thermostat id: {control.thermostat_id}")
+            print(f"mode: {control.mode}")
+            print(f"status: {control.status}")
+            # HOTFIX
+            control.thermostat_id = thermostat_id
             return control
 
-    async def create_manual(self, thermostat_id: int, set_point: float, mode: str) -> ThermostatControlResponse:
+    async def create_manual(
+        self, thermostat_id: int, set_point: float, mode: str
+    ) -> ThermostatControlResponse:
         request = ThermostatControlRequest(
             mode=WorkingMode.from_string(mode),
             heat_set_point=set_point,
-            cool_set_point=set_point
+            cool_set_point=set_point,
         )
         result = await self._thermostat_service.create_manual(
-            thermostat_id=thermostat_id,
-            request=request,
-            access_token=self._token
+            thermostat_id=thermostat_id, request=request, access_token=self._token
         )
         return result
 
@@ -348,7 +362,7 @@ class OptisparkApiClient:
             data_serialised = self.json_serialisable(data)
 
             async with async_timeout.timeout(120):
-                await self._login(data)
+                await self._login()
 
                 response = await self._session.request(
                     method=method,
@@ -402,7 +416,7 @@ class OptisparkApiClient:
         Makes home asssistant login into OptiSpark backend.
         checks if user has locations and devices
         if not create locataion and device
-         """
+        """
         LOGGER.debug(f" Initiating login into OptiSpark backend")
         location: LocationResponse | None = None
         if not self._token:
@@ -426,29 +440,37 @@ class OptisparkApiClient:
                 tariff_params={
                     "product_code": TARIFF_PRODUCT_CODE,
                     "tariff_code": TARIFF_CODE,
-                }
+                },
             )
-            location: LocationResponse | None = await self._location_service.add_location(
-                request=location_request,
-                access_token=self._token
+            print(f"{location_request}")
+            location: (
+                LocationResponse | None
+            ) = await self._location_service.add_location(
+                request=location_request, access_token=self._token
             )
+            print(f"{location}")
             self._has_locations = True if location else False
         if not self._has_devices:
             if not location:
-                locations: [LocationResponse] = await self._location_service.get_locations(access_token=self._token)
+                locations: [
+                    LocationResponse
+                ] = await self._location_service.get_locations(access_token=self._token)
+                print("****************** LOCATIONS *********************")
+                print(locations[0])
                 location = locations[0]
 
             device_request = DeviceRequest(
-                name='Heat Pump',
+                name="Heat Pump",
                 location_id=location.id,
-                manufacturer='ha',
-                model_name='ha_model',
-                version='version',
-                integration_params={}
+                manufacturer="ha",
+                model_name="ha_model",
+                version="version",
+                integration_params={},
             )
-            device_response: DeviceResponse | None = await self._device_service.add_device(
-                request=device_request,
-                access_token=self._token
+            device_response: (
+                DeviceResponse | None
+            ) = await self._device_service.add_device(
+                request=device_request, access_token=self._token
             )
 
             self._has_devices = True if device_response else False

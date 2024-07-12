@@ -175,7 +175,8 @@ class BackendUpdateHandler:
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
-        ) = await self.client.upload_history(dynamo_data)
+        ) = await self.client.get_data_dates()
+        # ) = await self.client.upload_history(dynamo_data)
 
     async def upload_old_history(self):
         """Upload section of old history states that are older than anything in dynamo.
@@ -230,7 +231,8 @@ class BackendUpdateHandler:
         (
             self.dynamo_oldest_dates,
             self.dynamo_newest_dates,
-        ) = await self.client.upload_history(dynamo_data)
+        ) = await self.client.get_data_dates()
+        # ) = await self.client.upload_history(dynamo_data)
 
     async def __call__(self, lambda_args):
         """Return lambda data for the current time.
