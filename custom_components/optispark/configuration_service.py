@@ -34,7 +34,7 @@ class ConfigurationService:
             )
             return {}
 
-    def get(self, path):
+    def get(self, path, default=None):
         if not ConfigurationService._initialized:
             raise Exception("ConfigurationService must be initialized with a config file before use.")
 
@@ -44,9 +44,12 @@ class ConfigurationService:
         keys = path.split('.')
         data = self.config_data
         for key in keys:
-            data = data.get(key, {})
-            if data == {}:
-                break
+            if isinstance(data, dict):
+                data = data.get(key, default)
+            else:
+                data = default
+
+        # Cache the result before returning
         ConfigurationService._cache[path] = data
         return data
 
