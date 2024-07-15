@@ -7,7 +7,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import TEMP_CELSIUS
+from homeassistant.const import UnitOfTemperature
 
 from . import const
 from .coordinator import OptisparkDataUpdateCoordinator
@@ -134,7 +134,7 @@ class OptisparkClimate(OptisparkEntity, ClimateEntity):
         The front end of homeassistant deals with unit conversion, it just needs to know which
         units we are working with.
         """
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def target_temperature(self) -> float:

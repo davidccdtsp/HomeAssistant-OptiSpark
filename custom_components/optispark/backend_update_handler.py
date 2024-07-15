@@ -248,9 +248,9 @@ class BackendUpdateHandler:
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
             await self.get_heating_profile(lambda_args, 1)
-        else:
-            if self.history_upload_complete is False:
-                await self.upload_old_history()
+        # else:
+        #     if self.history_upload_complete is False:
+        #         await self.upload_old_history()
         return self.get_closest_time(lambda_args)
 
     async def _check_running_manual_mode(self, lambda_args: dict) -> bool:
@@ -299,6 +299,8 @@ class BackendUpdateHandler:
         """
         entities_missing = []
         LOGGER.debug("---entities_with_data_missing_from_dynamo---")
+        print('**********************')
+        print(self.active_entity_ids)
         for active_entity_id in self.active_entity_ids:
             column = self.id_to_column_name_lookup[active_entity_id]
             if self.dynamo_newest_dates[column] is None:
@@ -343,6 +345,7 @@ class BackendUpdateHandler:
         while missing_entities := self.entities_with_data_missing_from_dynamo():
             count += 1
             LOGGER.debug(f"Updating dynamo with NEW data: round ({count})")
+            print('[------------ UPDATING!!!!! ----------------]')
             await self.upload_new_history(missing_entities)
         LOGGER.debug("Upload of new history complete\n")
 

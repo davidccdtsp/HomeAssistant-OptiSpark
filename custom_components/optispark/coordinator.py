@@ -32,6 +32,8 @@ from homeassistant.helpers import template
 from .domain.exception.exception import OptisparkSetTemperatureError
 # from .domain.value_object.address import Address
 
+from homeassistant.const import UnitOfTemperature
+
 
 class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the API."""
@@ -103,9 +105,9 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         If the sensor uses Farenheit then we'll need to convert Farenheit to Celcius
         """
         sensor_unit = entity.native_unit_of_measurement
-        if sensor_unit == homeassistant.const.TEMP_CELSIUS:
+        if sensor_unit == UnitOfTemperature.CELSIUS:
             return temp
-        elif sensor_unit == homeassistant.const.TEMP_FAHRENHEIT:
+        elif sensor_unit == UnitOfTemperature.FAHRENHEIT:
             # Convert temperature from Celcius to Farenheit
             return (temp - 32) * 5 / 9
         else:
@@ -118,9 +120,10 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         If the heat_pump uses Farenheit then we'll need to convert Farenheit to Celcius
         """
         heat_pump_unit = entity.temperature_unit
-        if heat_pump_unit == homeassistant.const.TEMP_CELSIUS:
+        # if heat_pump_unit == homeassistant.const.TEMP_CELSIUS:
+        if heat_pump_unit == UnitOfTemperature.CELSIUS:
             return temp
-        elif heat_pump_unit == homeassistant.const.TEMP_FAHRENHEIT:
+        elif heat_pump_unit == UnitOfTemperature.FAHRENHEIT:
             # Convert temperature from Celcius to Farenheit
             return (temp - 32) * 5 / 9
         else:
@@ -133,9 +136,9 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         If the heat_pump uses Farenheit then we'll need to convert Celcius to Farenheit
         """
         heat_pump_unit = entity.temperature_unit
-        if heat_pump_unit == homeassistant.const.TEMP_CELSIUS:
+        if heat_pump_unit == UnitOfTemperature.CELSIUS:
             return temp
-        elif heat_pump_unit == homeassistant.const.TEMP_FAHRENHEIT:
+        elif heat_pump_unit == UnitOfTemperature.FAHRENHEIT:
             # Convert temperature from Celcius to Farenheit
             return temp * 9 / 5 + 32
         else:
