@@ -36,9 +36,6 @@ from .infra.location.model.location_request import (
 )
 from .infra.location.model.location_response import LocationResponse
 
-import time
-import pytz
-
 from .infra.shared.model.working_mode import WorkingMode
 from .infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
 from .infra.thermostat.model.thermostat_control_response import (
@@ -48,33 +45,6 @@ from .infra.thermostat.model.thermostat_control_status import ThermostatControlS
 from .infra.thermostat.model.thermostat_prediction import ThermostatPrediction
 from .infra.thermostat.thermostat_service import ThermostatService
 from .utils import to_thermostat_info
-
-# class OptisparkApiClientError(Exception):
-#     """Exception to indicate a general API error."""
-
-
-# class OptisparkApiClientTimeoutError(OptisparkApiClientError):
-#     """Lamba probably took too long starting up."""
-
-
-# class OptisparkApiClientCommunicationError(OptisparkApiClientError):
-#     """Exception to indicate a communication error."""
-#
-#
-# class OptisparkApiClientAuthenticationError(OptisparkApiClientError):
-#     """Exception to indicate an authentication error."""
-#
-#
-# class OptisparkApiClientLambdaError(OptisparkApiClientError):
-#     """Exception to indicate lambda return an error."""
-#
-#
-# class OptisparkApiClientPostcodeError(OptisparkApiClientError):
-#     """Exception to indicate invalid postcode."""
-#
-#
-# class OptisparkApiClientUnitError(OptisparkApiClientError):
-#     """Exception to indicate unit error."""
 
 BACKEND_URL = "backend.url"
 
@@ -138,7 +108,6 @@ class OptisparkApiClient:
         self._location_service = LocationService(session=session)
         self._device_service = DeviceService(session=session)
         self._thermostat_service = ThermostatService(session=session)
-        # self._config_service = ConfigurationService(config_file='./config/config.json')
         self._config_service: ConfigurationService = config_service
 
     def datetime_set_utc(self, d: dict[str, datetime]):
@@ -149,21 +118,19 @@ class OptisparkApiClient:
             d[key] = d[key].replace(tzinfo=timezone.utc)
         return d
 
-    async def upload_history(self, dynamo_data):
-        """Upload historical data to dynamoDB without calculating heat pump profile."""
-        url = self._config_service.get(BACKEND_URL)
-        payload = {"dynamo_data": dynamo_data}
-        payload["upload_only"] = True
-        extra = await self._api_wrapper(
-            method="post",
-            url=url,
-            data=payload,
-        )
-        oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
-        newest_dates = self.datetime_set_utc(extra["newest_dates"])
-        return oldest_dates, newest_dates
-
-    # async def check_and_set_manual(self, data: dict):
+    # async def upload_history(self, dynamo_data):
+    #     """Upload historical data to dynamoDB without calculating heat pump profile."""
+    #     url = self._config_service.get(BACKEND_URL)
+    #     payload = {"dynamo_data": dynamo_data}
+    #     payload["upload_only"] = True
+    #     extra = await self._api_wrapper(
+    #         method="post",
+    #         url=url,
+    #         data=payload,
+    #     )
+    #     oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
+    #     newest_dates = self.datetime_set_utc(extra["newest_dates"])
+    #     return oldest_dates, newest_dates
 
     # TODO: remove this method
     async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
@@ -195,7 +162,8 @@ class OptisparkApiClient:
         LOGGER.debug(self._user_hash)
         # Checks self._token, self._has_locations & self._has_devices
         # and updates if necessary
-        await self._login()
+        await self._check_token_and_login()
+        await self._check_location_and_device()
         # TODO: change this, store thermostat_id and add logic to update if necessary
         control = await self.get_thermostat_control()
         self._graph_data: List[
@@ -233,7 +201,7 @@ class OptisparkApiClient:
         payload["get_profile_only"] = True
 
         if not self._graph_data:
-            await self._login()
+            await self._check_token_and_login()
             # TODO: change this, store thermostat_id and add logic to update if necessary
             control = await self.get_thermostat_control()
             self._graph_data: List[
@@ -273,7 +241,8 @@ class OptisparkApiClient:
     async def get_thermostat_control(self) -> ThermostatControlResponse:
         LOGGER.debug('Fetching thermostat control')
         if not self._token:
-            await self._login()
+            await self._check_token_and_login()
+            await self._check_location_and_device()
 
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
@@ -287,7 +256,8 @@ class OptisparkApiClient:
 
     async def get_thermostat_info(self) -> ThermostatInfo:
         if not self._token:
-            await self._login()
+            await self._check_token_and_login()
+            await self._check_location_and_device()
 
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
@@ -334,7 +304,8 @@ class OptisparkApiClient:
 
         if not self._token:
             # If user is not logged perform login process
-            await self._login()
+            await self._check_token_and_login()
+            await self._check_location_and_device()
 
         try:
             if "dynamo_data" in data:
@@ -342,7 +313,8 @@ class OptisparkApiClient:
             data_serialised = self.json_serialisable(data)
 
             async with async_timeout.timeout(120):
-                await self._login()
+                await self._check_token_and_login()
+                await self._check_location_and_device()
 
                 response = await self._session.request(
                     method=method,
@@ -391,15 +363,14 @@ class OptisparkApiClient:
                 "Something really wrong happened!"
             ) from exception
 
-    async def _login(self):
+    async def _check_token_and_login(self):
         """
         Makes home asssistant login into OptiSpark backend.
         checks if user has locations and devices
         if not create locataion and device
         """
-        LOGGER.debug(f" Initiating login into OptiSpark backend")
-        location: LocationResponse | None = None
         if not self._token:
+            LOGGER.debug(f" Initiating login into OptiSpark backend")
             # user_hash = data["user_hash"]
             if self._user_hash:
                 login_response: LoginResponse = await self._auth_service.login(
@@ -409,6 +380,12 @@ class OptisparkApiClient:
                 self._has_locations = login_response.has_locations
                 self._has_devices = login_response.has_devices
                 LOGGER.debug(f" User token: {login_response.token}")
+
+        valid = self._auth_service.is_token_expired(self._token)
+        LOGGER.info(f'Token is valid ---> {valid}')
+
+    async def _check_location_and_device(self):
+        location: LocationResponse | None = None
         if not self._has_locations:
             location_request = LocationRequest(
                 name="home",
