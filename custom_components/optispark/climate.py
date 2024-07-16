@@ -12,6 +12,7 @@ from homeassistant.const import UnitOfTemperature
 from . import const
 from .coordinator import OptisparkDataUpdateCoordinator
 from .entity import OptisparkEntity
+from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
 
 #from .const import LOGGER
 
@@ -26,11 +27,20 @@ ENTITY_DESCRIPTIONS = (
 
 async def async_setup_entry(hass, entry, async_add_devices):
     """Set up the climate platform."""
-    coordinator = hass.data[const.DOMAIN][entry.entry_id]
+    coordinator: OptisparkDataUpdateCoordinator = hass.data[const.DOMAIN][entry.entry_id]
+    thermostat_info: ThermostatControlResponse = await coordinator.fetch_thermostat_info()
+    target_temp = 20
+    if thermostat_info.mode == 'HEATING' and thermostat_info.heat_set_point:
+        target_temp = thermostat_info.heat_set_point
+    elif thermostat_info.mode == 'COOLING' and thermostat_info.cool_set_point:
+        target_temp = thermostat_info.cool_set_point
+
+
     async_add_devices(
         OptisparkClimate(
             coordinator=coordinator,
             entity_description=entity_description,
+            target_temp=target_temp
         )
         for entity_description in ENTITY_DESCRIPTIONS
     )
@@ -43,11 +53,12 @@ class OptisparkClimate(OptisparkEntity, ClimateEntity):
         self,
         coordinator: OptisparkDataUpdateCoordinator,
         entity_description: ClimateEntityDescription,
+        target_temp: float,
     ) -> None:
         """Initialize the sensor class."""
         super().__init__(coordinator)
         self.entity_description = entity_description
-        self._target_temperature = 20
+        self._target_temperature = target_temp if target_temp else 20
         self._target_temperature_high = 25
         self._target_temperature_low = 20
         self._hvac_mode = HVACMode.HEAT

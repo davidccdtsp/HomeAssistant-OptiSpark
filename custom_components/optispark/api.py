@@ -163,6 +163,7 @@ class OptisparkApiClient:
 
     # async def check_and_set_manual(self, data: dict):
 
+    # TODO: remove this method
     async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
         """Checks if optispark is running in manual, if not set manual mode"""
 
