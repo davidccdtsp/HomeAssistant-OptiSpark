@@ -21,6 +21,7 @@ from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
 import traceback
 from http import HTTPStatus
 
+from .domain.thermostat.thermostat_info import ThermostatInfo
 from .domain.value_object.address import Address
 from .domain.value_object.control_info import ControlInfo
 from .infra.auth.auth_service import AuthService
@@ -46,6 +47,7 @@ from .infra.thermostat.model.thermostat_control_response import (
 from .infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
 from .infra.thermostat.model.thermostat_prediction import ThermostatPrediction
 from .infra.thermostat.thermostat_service import ThermostatService
+from .utils import to_thermostat_info
 
 # class OptisparkApiClientError(Exception):
 #     """Exception to indicate a general API error."""
@@ -256,9 +258,9 @@ class OptisparkApiClient:
         payload["get_profile_only"] = True
         print(lambda_args)
         LOGGER.debug("----------Lambda get profile----------")
-        tz = pytz.timezone("Europe/London")
-        todays_time = time.time()
-        current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
+        # tz = pytz.timezone("Europe/London")
+        # todays_time = time.time()
+        # current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
 
         if not self._graph_data:
             await self._login()
@@ -316,6 +318,19 @@ class OptisparkApiClient:
             # HOTFIX
             control.thermostat_id = thermostat_id
             return control
+
+    async def get_thermostat_info(self) -> ThermostatInfo:
+        if not self._token:
+            await self._login()
+
+        locations = await self._location_service.get_locations(self._token)
+        if locations[0]:
+            thermostat_id = locations[0].thermostat_id
+            LOGGER.debug(f"Getting thermostat control mode")
+            control = await self._thermostat_service.get_control(
+                thermostat_id=thermostat_id, access_token=self._token
+            )
+            return to_thermostat_info(control)
 
     async def create_manual(
         self, thermostat_id: int, set_point: float, mode: str

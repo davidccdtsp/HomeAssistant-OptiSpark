@@ -34,7 +34,7 @@ from .domain.exception.exception import OptisparkSetTemperatureError
 
 from homeassistant.const import UnitOfTemperature
 
-from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from .domain.thermostat.thermostat_info import ThermostatInfo
 
 
 class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
@@ -100,10 +100,10 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             tariff=self._tariff,
         )
 
-    async def fetch_thermostat_info(self) -> ThermostatControlResponse:
+    async def fetch_thermostat_info(self) -> ThermostatInfo:
         """Fetchs thermostat info from OptiSpark backend"""
 
-        return await self.client.get_thermostat_control()
+        return await self.client.get_thermostat_info()
 
     def convert_sensor_from_farenheit(self, entity, temp):
         """Ensure that the sensor returns values in Celcius.

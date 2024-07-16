@@ -11,10 +11,8 @@ from homeassistant.const import UnitOfTemperature
 
 from . import const
 from .coordinator import OptisparkDataUpdateCoordinator
+from .domain.thermostat.thermostat_info import ThermostatInfo
 from .entity import OptisparkEntity
-from .infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
-
-#from .const import LOGGER
 
 ENTITY_DESCRIPTIONS = (
     ClimateEntityDescription(
@@ -28,13 +26,14 @@ ENTITY_DESCRIPTIONS = (
 async def async_setup_entry(hass, entry, async_add_devices):
     """Set up the climate platform."""
     coordinator: OptisparkDataUpdateCoordinator = hass.data[const.DOMAIN][entry.entry_id]
-    thermostat_info: ThermostatControlResponse = await coordinator.fetch_thermostat_info()
+    thermostat_info: ThermostatInfo = await coordinator.fetch_thermostat_info()
     target_temp = 20
-    if thermostat_info.mode == 'HEATING' and thermostat_info.heat_set_point:
-        target_temp = thermostat_info.heat_set_point
-    elif thermostat_info.mode == 'COOLING' and thermostat_info.cool_set_point:
-        target_temp = thermostat_info.cool_set_point
-
+    if thermostat_info.hvac_mode == HVACMode.COOL and thermostat_info.target_temp_low:
+        target_temp = thermostat_info.target_temp_low
+    elif thermostat_info.hvac_mode == HVACMode.HEAT and thermostat_info.target_temp_high:
+        target_temp = thermostat_info.target_temp_high
+    elif thermostat_info.hvac_mode == HVACMode.HEAT_COOL:
+        target_temp = thermostat_info.target_temp_high
 
     async_add_devices(
         OptisparkClimate(
