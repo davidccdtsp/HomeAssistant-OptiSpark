@@ -4,6 +4,8 @@ import aiohttp
 import jwt
 import time
 
+from aiohttp import ClientSession
+
 from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import config_service
 from custom_components.optispark.infra.auth.model.login_response import LoginResponse
@@ -15,17 +17,20 @@ class AuthService:
     def __init__(
             self,
             session: aiohttp.ClientSession,
+            user_hash: str
     ) -> None:
         """Sample API Client."""
+        self._login_response = None
         self._session = session
         self._base_url = config_service.get('backend.baseUrl')
         self._ssl = config_service.get('backend.verifySSL', default=True)
         self._token = None
+        self._user_hash = user_hash
 
-    async def login(self, user_hash: str) -> LoginResponse:
+    async def login(self) -> LoginResponse:
         auth_url = f'{self._base_url}/auth/ha_login'
         try:
-            payload = {"user_hash": user_hash}
+            payload = {"user_hash": self._user_hash}
             response = await self._session.post(
                 url=auth_url,
                 json=payload,
@@ -38,7 +43,7 @@ class AuthService:
                 ) from Exception
 
             json_response = await response.json()
-            self._token = json_response["accessToken"]
+            # self._token = json_response["accessToken"]
 
             return LoginResponse(
                 token=json_response["accessToken"],
@@ -56,9 +61,20 @@ class AuthService:
             LOGGER.error(f"Unexpected error occurred: {e}")
             raise
 
-    def is_token_expired(self):
+    @property
+    async def token(self) -> str:
+        if self._is_token_expired() and self._user_hash:
+            self._login_response: LoginResponse = await self.login()
+            self._token = self._login_response.token
+        return self._token
+
+    @property
+    def login_response(self) -> LoginResponse:
+        return self._login_response
+
+    def _is_token_expired(self):
         try:
-            # Decodificar el payload del token JWT sin verificar la firma
+            # Decodes and checks token expiration
             payload = jwt.decode(self._token, options={"verify_signature": False})
             exp_timestamp = payload.get('exp', 0)
             current_timestamp = time.time()
@@ -67,3 +83,15 @@ class AuthService:
             return True
         except jwt.DecodeError:
             return True
+
+    # def is_token_expired(self, token: str):
+    #     try:
+    #         # Decodificar el payload del token JWT sin verificar la firma
+    #         payload = jwt.decode(token, options={"verify_signature": False})
+    #         exp_timestamp = payload.get('exp', 0)
+    #         current_timestamp = time.time()
+    #         return current_timestamp > exp_timestamp
+    #     except jwt.ExpiredSignatureError:
+    #         return True
+    #     except jwt.DecodeError:
+    #         return True

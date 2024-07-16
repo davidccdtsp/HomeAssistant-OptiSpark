@@ -2,24 +2,24 @@
 
 from __future__ import annotations
 
-import asyncio
-import socket
+# import asyncio
+# import socket
 from typing import List
 
 import aiohttp
-import async_timeout
+# import async_timeout
 from decimal import Decimal
 from datetime import datetime, timezone
-import pickle
-import gzip
-import base64
-
-from homeassistant.core import async_get_hass, HomeAssistant
+# import pickle
+# import gzip
+# import base64
+#
+# from homeassistant.core import async_get_hass, HomeAssistant
 
 from .configuration_service import ConfigurationService, config_service
 from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
-import traceback
-from http import HTTPStatus
+# import traceback
+# from http import HTTPStatus
 
 from .domain.thermostat.thermostat_info import ThermostatInfo
 from .domain.value_object.address import Address
@@ -101,10 +101,10 @@ class OptisparkApiClient:
         self._session = session
         self._user_hash = user_hash
         self._address = address
-        self._token = None
+        # self._token = None
         self._has_locations = False
         self._has_devices = False
-        self._auth_service = AuthService(session=session)
+        self._auth_service = AuthService(session=session, user_hash=user_hash)
         self._location_service = LocationService(session=session)
         self._device_service = DeviceService(session=session)
         self._thermostat_service = ThermostatService(session=session)
@@ -135,7 +135,7 @@ class OptisparkApiClient:
     # TODO: remove this method
     async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
         """Checks if optispark is running in manual, if not set manual mode"""
-
+        await self._check_location_and_device()
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.info(
@@ -160,16 +160,16 @@ class OptisparkApiClient:
 
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
         LOGGER.debug(self._user_hash)
-        # Checks self._token, self._has_locations & self._has_devices
         # and updates if necessary
-        await self._check_token_and_login()
+        # await self._check_token_and_login()
         await self._check_location_and_device()
-        # TODO: change this, store thermostat_id and add logic to update if necessary
+        token = await self._auth_service.token
+        # await self._check_location_and_device()
         control = await self.get_thermostat_control()
         self._graph_data: List[
             ThermostatPrediction
         ] = await self._thermostat_service.get_graph(
-            access_token=self._token, thermostat_id=control.thermostat_id
+            access_token=token, thermostat_id=control.thermostat_id
         )
 
         oldest_date = self._graph_data[0].date
@@ -199,15 +199,15 @@ class OptisparkApiClient:
         # LOGGER.debug(lambda_args)
         payload = lambda_args
         payload["get_profile_only"] = True
-
+        await self._check_location_and_device()
         if not self._graph_data:
-            await self._check_token_and_login()
-            # TODO: change this, store thermostat_id and add logic to update if necessary
+            token = await self._auth_service.token
+            # await self._check_token_and_login()
             control = await self.get_thermostat_control()
             self._graph_data: List[
                 ThermostatPrediction
             ] = await self._thermostat_service.get_graph(
-                access_token=self._token, thermostat_id=control.thermostat_id
+                access_token=token, thermostat_id=control.thermostat_id
             )
 
         if self._graph_data[0].date.tzinfo is None:
@@ -240,151 +240,160 @@ class OptisparkApiClient:
 
     async def get_thermostat_control(self) -> ThermostatControlResponse:
         LOGGER.debug('Fetching thermostat control')
-        if not self._token:
-            await self._check_token_and_login()
-            await self._check_location_and_device()
-
-        locations = await self._location_service.get_locations(self._token)
+        token = await self._auth_service.token
+        # if not token:
+            # await self._check_token_and_login()
+            # await self._check_location_and_device()
+        await self._check_location_and_device()
+        locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
             # LOGGER.debug(f"Getting thermostat control mode")
             control = await self._thermostat_service.get_control(
-                thermostat_id=thermostat_id, access_token=self._token
+                thermostat_id=thermostat_id, access_token=token
             )
             LOGGER.debug(f'id:{control.thermostat_id} {control.mode} {control.status}')
             return control
 
     async def get_thermostat_info(self) -> ThermostatInfo:
-        if not self._token:
-            await self._check_token_and_login()
-            await self._check_location_and_device()
-
-        locations = await self._location_service.get_locations(self._token)
+        token = await self._auth_service.token
+        # if not token:
+            # await self._check_token_and_login()
+            # await self._check_location_and_device()
+        await self._check_location_and_device()
+        locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
             LOGGER.debug(f"Getting thermostat control mode")
             control = await self._thermostat_service.get_control(
-                thermostat_id=thermostat_id, access_token=self._token
+                thermostat_id=thermostat_id, access_token=token
             )
             return to_thermostat_info(control)
 
     async def create_manual(
         self, thermostat_id: int, set_point: float, mode: str
     ) -> ThermostatControlResponse:
+        await self._check_location_and_device()
         request = ThermostatControlRequest(
             mode=WorkingMode.from_string(mode),
             heat_set_point=set_point,
             cool_set_point=set_point,
         )
+        token = await self._auth_service.token
         result = await self._thermostat_service.create_manual(
-            thermostat_id=thermostat_id, request=request, access_token=self._token
+            thermostat_id=thermostat_id, request=request, access_token=token
         )
         return result
 
-    def json_serialisable(self, data):
-        """Convert to compressed bytes so that data can be converted to json."""
-        uncompressed_data = pickle.dumps(data)
-        compressed_data = gzip.compress(uncompressed_data)
-        LOGGER.debug(f"len(uncompressed_data): {len(uncompressed_data)}")
-        LOGGER.debug(f"len(compressed_data): {len(compressed_data)}")
-        base64_string = base64.b64encode(compressed_data).decode("utf-8")
-        return base64_string
+    # def json_serialisable(self, data):
+    #     """Convert to compressed bytes so that data can be converted to json."""
+    #     uncompressed_data = pickle.dumps(data)
+    #     compressed_data = gzip.compress(uncompressed_data)
+    #     LOGGER.debug(f"len(uncompressed_data): {len(uncompressed_data)}")
+    #     LOGGER.debug(f"len(compressed_data): {len(compressed_data)}")
+    #     base64_string = base64.b64encode(compressed_data).decode("utf-8")
+    #     return base64_string
+    #
+    # def json_deserialise(self, payload):
+    #     """Convert from the compressed bytes to original objects."""
+    #     # payload = payload["serialised_payload"]
+    #     # payload = payload["serialisePayload"]
+    #     payload = base64.b64decode(payload)
+    #     payload = gzip.decompress(payload)
+    #     payload = pickle.loads(payload)
+    #     return payload
 
-    def json_deserialise(self, payload):
-        """Convert from the compressed bytes to original objects."""
-        # payload = payload["serialised_payload"]
-        # payload = payload["serialisePayload"]
-        payload = base64.b64decode(payload)
-        payload = gzip.decompress(payload)
-        payload = pickle.loads(payload)
-        return payload
+    # async def _api_wrapper(self, method: str, url: str, data: dict):
+    #     """Call the Lambda function."""
+    #
+    #     # if not await self._auth_service.token:
+    #     #     # If user is not logged perform login process
+    #     #     await self._check_token_and_login()
+    #     #     await self._check_location_and_device()
+    #
+    #     try:
+    #         if "dynamo_data" in data:
+    #             data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
+    #         data_serialised = self.json_serialisable(data)
+    #
+    #         async with async_timeout.timeout(120):
+    #             # await self._check_token_and_login()
+    #             # await self._check_location_and_device()
+    #
+    #             response = await self._session.request(
+    #                 method=method,
+    #                 url=url,
+    #                 json=data_serialised,
+    #             )
+    #             if response.status in (401, 403):
+    #                 # Clean token forcing login in next api_wrapper call
+    #                 raise OptisparkApiClientAuthenticationError(
+    #                     "Invalid credentials",
+    #                 )
+    #
+    #             if response.status == 502:
+    #                 # HomeAssistant will not print errors if there was never a successful update
+    #                 LOGGER.debug(
+    #                     "OptisparkApiClientCommunicationError:\n  502 Bad Gateway - check payload"
+    #                 )
+    #                 raise OptisparkApiClientCommunicationError(
+    #                     "502 Bad Gateway - check payload"
+    #                 )
+    #             response.raise_for_status()
+    #             payload = await response.json()
+    #             return self.json_deserialise(payload)
+    #
+    #     except asyncio.TimeoutError as exception:
+    #         LOGGER.error(traceback.format_exc())
+    #         LOGGER.error(
+    #             "OptisparkApiClientTimeoutError:\n  Timeout error fetching information"
+    #         )
+    #         raise OptisparkApiClientTimeoutError(
+    #             "Timeout error fetching information",
+    #         ) from exception
+    #     except (aiohttp.ClientError, socket.gaierror) as exception:
+    #         LOGGER.error(traceback.format_exc())
+    #         LOGGER.error(
+    #             "OptisparkApiClientCommunicationError:\n  Error fetching information"
+    #         )
+    #         raise OptisparkApiClientCommunicationError(
+    #             "Error fetching information",
+    #         ) from exception
+    #     except Exception as exception:  # pylint: disable=broad-except
+    #         LOGGER.error(traceback.format_exc())
+    #         LOGGER.error("OptisparkApiClientError:\n  Something really wrong happened!")
+    #         raise OptisparkApiClientError(
+    #             "Something really wrong happened!"
+    #         ) from exception
 
-    async def _api_wrapper(self, method: str, url: str, data: dict):
-        """Call the Lambda function."""
-
-        if not self._token:
-            # If user is not logged perform login process
-            await self._check_token_and_login()
-            await self._check_location_and_device()
-
-        try:
-            if "dynamo_data" in data:
-                data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
-            data_serialised = self.json_serialisable(data)
-
-            async with async_timeout.timeout(120):
-                await self._check_token_and_login()
-                await self._check_location_and_device()
-
-                response = await self._session.request(
-                    method=method,
-                    url=url,
-                    json=data_serialised,
-                )
-                if response.status in (401, 403):
-                    # Clean token forcing login in next api_wrapper call
-                    self._token = None
-                    raise OptisparkApiClientAuthenticationError(
-                        "Invalid credentials",
-                    )
-
-                if response.status == 502:
-                    # HomeAssistant will not print errors if there was never a successful update
-                    LOGGER.debug(
-                        "OptisparkApiClientCommunicationError:\n  502 Bad Gateway - check payload"
-                    )
-                    raise OptisparkApiClientCommunicationError(
-                        "502 Bad Gateway - check payload"
-                    )
-                response.raise_for_status()
-                payload = await response.json()
-                return self.json_deserialise(payload)
-
-        except asyncio.TimeoutError as exception:
-            LOGGER.error(traceback.format_exc())
-            LOGGER.error(
-                "OptisparkApiClientTimeoutError:\n  Timeout error fetching information"
-            )
-            raise OptisparkApiClientTimeoutError(
-                "Timeout error fetching information",
-            ) from exception
-        except (aiohttp.ClientError, socket.gaierror) as exception:
-            LOGGER.error(traceback.format_exc())
-            LOGGER.error(
-                "OptisparkApiClientCommunicationError:\n  Error fetching information"
-            )
-            raise OptisparkApiClientCommunicationError(
-                "Error fetching information",
-            ) from exception
-        except Exception as exception:  # pylint: disable=broad-except
-            LOGGER.error(traceback.format_exc())
-            LOGGER.error("OptisparkApiClientError:\n  Something really wrong happened!")
-            raise OptisparkApiClientError(
-                "Something really wrong happened!"
-            ) from exception
-
-    async def _check_token_and_login(self):
-        """
-        Makes home asssistant login into OptiSpark backend.
-        checks if user has locations and devices
-        if not create locataion and device
-        """
-        if not self._token:
-            LOGGER.debug(f" Initiating login into OptiSpark backend")
-            # user_hash = data["user_hash"]
-            if self._user_hash:
-                login_response: LoginResponse = await self._auth_service.login(
-                    user_hash=self._user_hash
-                )
-                self._token = login_response.token
-                self._has_locations = login_response.has_locations
-                self._has_devices = login_response.has_devices
-                LOGGER.debug(f" User token: {login_response.token}")
-
-        valid = self._auth_service.is_token_expired(self._token)
-        LOGGER.info(f'Token is valid ---> {valid}')
+    # async def _check_token_and_login(self):
+    #     """
+    #     Makes home asssistant login into OptiSpark backend.
+    #     checks if user has locations and devices
+    #     if not create locataion and device
+    #     """
+    #
+    #     if not await self._auth_service.token:
+    #         LOGGER.debug(f" Initiating login into OptiSpark backend")
+    #         # user_hash = data["user_hash"]
+    #         if self._user_hash:
+    #             login_response: LoginResponse = await self._auth_service.login(
+    #                 user_hash=self._user_hash
+    #             )
+    #
+    #             self._has_locations = login_response.has_locations
+    #             self._has_devices = login_response.has_devices
+    #             LOGGER.debug(f" User token: {login_response.token}")
+    #
+    #     # LOGGER.info(f'Token is valid ---> {valid}')
 
     async def _check_location_and_device(self):
+        login_response = self._auth_service.login_response
+        if not login_response:
+            login_response: LoginResponse = await self._auth_service.login()
+        self._has_locations = login_response.has_locations
+        self._has_devices = login_response.has_devices
+        token = login_response.token
         location: LocationResponse | None = None
         if not self._has_locations:
             location_request = LocationRequest(
@@ -403,14 +412,14 @@ class OptisparkApiClient:
             location: (
                 LocationResponse | None
             ) = await self._location_service.add_location(
-                request=location_request, access_token=self._token
+                request=location_request, access_token=token
             )
             self._has_locations = True if location else False
         if not self._has_devices:
             if not location:
                 locations: [
                     LocationResponse
-                ] = await self._location_service.get_locations(access_token=self._token)
+                ] = await self._location_service.get_locations(access_token=token)
                 LOGGER.debug(locations[0])
                 location = locations[0]
 
@@ -425,7 +434,7 @@ class OptisparkApiClient:
             device_response: (
                 DeviceResponse | None
             ) = await self._device_service.add_device(
-                request=device_request, access_token=self._token
+                request=device_request, access_token=token
             )
 
             self._has_devices = True if device_response else False
