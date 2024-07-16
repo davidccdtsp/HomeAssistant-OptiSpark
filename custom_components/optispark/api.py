@@ -171,16 +171,16 @@ class OptisparkApiClient:
 
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
-            LOGGER.debug(
-                f"Control in {control.status} status, requesting manual change..."
+            LOGGER.info(
+                f"Control in {control.status} status, requesting manual mode..."
             )
-            print(f" {control.status} --> generating manual control request")
+            LOGGER.debug(f" {control.status} --> generating manual control request")
             control = await self.create_manual(
                 thermostat_id=control.thermostat_id,
                 set_point=data.set_point,
                 mode=data.mode,
             )
-            print(
+            LOGGER.info(
                 f"Created: {control.status} - {control.mode} - {control.heat_set_point} -/"
                 f" {control.cool_set_point}"
             )
@@ -190,9 +190,9 @@ class OptisparkApiClient:
         """Call lambda and only get the newest and oldest dates in dynamo.
         dynamo_data will only contain the user_hash.
         """
-        print("--------------------------")
+
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
-        print(self._user_hash)
+        LOGGER.debug(self._user_hash)
         # Checks self._token, self._has_locations & self._has_devices
         # and updates if necessary
         await self._login()
@@ -206,9 +206,6 @@ class OptisparkApiClient:
 
         oldest_date = self._graph_data[0].date
         newest_date = self._graph_data[-1].date
-
-        print(oldest_date)
-        print(newest_date)
 
         extra = {
             "oldest_dates": {
@@ -230,37 +227,10 @@ class OptisparkApiClient:
 
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
-        # lambda_url = 'https://lhyj2mknjfmatuwzkxn4uuczrq0fbsbd.lambda-url.eu-west-2.on.aws/'
-        # lambda_url = "http://localhost:5000/home-assistant/profile"
-        # url = self._config_service.get(BACKEND_URL)
-        #
-        # payload = lambda_args
-        # payload["get_profile_only"] = True
-        # LOGGER.debug("----------Lambda get profile----------")
-        # results, errors = await self._api_wrapper(
-        #     method="post",
-        #     url=url,
-        #     data=payload,
-        # )
-        # if errors["success"] is False:
-        #     LOGGER.debug(f'OptisparkApiClientLambdaError: {errors["error_message"]}')
-        #     raise OptisparkApiClientLambdaError(errors["error_message"])
-        # if results["optimised_cost"] == 0:
-        #     # Heating isn't active.  Should the savings be 0?
-        #     results["projected_percent_savings"] = 100
-        # else:
-        #     results["projected_percent_savings"] = (
-        #         results["base_cost"] / results["optimised_cost"] * 100 - 100
-        #     )
-        # return results
-
+        LOGGER.debug("Fetching profile")
+        # LOGGER.debug(lambda_args)
         payload = lambda_args
         payload["get_profile_only"] = True
-        print(lambda_args)
-        LOGGER.debug("----------Lambda get profile----------")
-        # tz = pytz.timezone("Europe/London")
-        # todays_time = time.time()
-        # current = datetime.fromtimestamp(timestamp=todays_time, tz=tz)
 
         if not self._graph_data:
             await self._login()
@@ -301,22 +271,18 @@ class OptisparkApiClient:
         return results
 
     async def get_thermostat_control(self) -> ThermostatControlResponse:
-        print("get working mode")
+        LOGGER.debug('Fetching thermostat control')
         if not self._token:
             await self._login()
 
         locations = await self._location_service.get_locations(self._token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
-            LOGGER.debug(f"Getting thermostat control mode")
+            # LOGGER.debug(f"Getting thermostat control mode")
             control = await self._thermostat_service.get_control(
                 thermostat_id=thermostat_id, access_token=self._token
             )
-            print(f"thermostat id: {control.thermostat_id}")
-            print(f"mode: {control.mode}")
-            print(f"status: {control.status}")
-            # HOTFIX
-            control.thermostat_id = thermostat_id
+            LOGGER.debug(f'id:{control.thermostat_id} {control.mode} {control.status}')
             return control
 
     async def get_thermostat_info(self) -> ThermostatInfo:
@@ -348,8 +314,6 @@ class OptisparkApiClient:
     def json_serialisable(self, data):
         """Convert to compressed bytes so that data can be converted to json."""
         uncompressed_data = pickle.dumps(data)
-        # print(data)
-        # print(uncompressed_data)
         compressed_data = gzip.compress(uncompressed_data)
         LOGGER.debug(f"len(uncompressed_data): {len(uncompressed_data)}")
         LOGGER.debug(f"len(compressed_data): {len(compressed_data)}")
@@ -458,21 +422,19 @@ class OptisparkApiClient:
                     "tariff_code": TARIFF_CODE,
                 },
             )
-            print(f"{location_request}")
+            # LOGGER.debug(f"{location_request}")
             location: (
                 LocationResponse | None
             ) = await self._location_service.add_location(
                 request=location_request, access_token=self._token
             )
-            print(f"{location}")
             self._has_locations = True if location else False
         if not self._has_devices:
             if not location:
                 locations: [
                     LocationResponse
                 ] = await self._location_service.get_locations(access_token=self._token)
-                print("****************** LOCATIONS *********************")
-                print(locations[0])
+                LOGGER.debug(locations[0])
                 location = locations[0]
 
             device_request = DeviceRequest(

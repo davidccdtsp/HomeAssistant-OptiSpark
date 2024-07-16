@@ -3,6 +3,7 @@ from http import HTTPStatus
 import aiohttp
 from aiohttp import ClientResponse
 
+from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import config_service
 from custom_components.optispark.infra.device.model.device_request import DeviceRequest
 from custom_components.optispark.infra.device.model.device_response import DeviceResponse
@@ -50,8 +51,8 @@ class DeviceService:
             return DeviceResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error occurred: {e}")
+            LOGGER.error(f"HTTP error occurred: {e}")
             raise OptisparkApiClientDeviceError("Add device error") from e
         except Exception as e:
-            print(f"Unexpected error occurred: {e}")
+            LOGGER.error(f"Unexpected error occurred: {e}")
             raise

@@ -1,3 +1,6 @@
+from custom_components.optispark.const import LOGGER
+
+
 class LocationResponse:
     id: int
     name: str
@@ -47,8 +50,8 @@ class LocationResponse:
                 thermostat_id=json["thermostatId"],
             )
         except KeyError as e:
-            print(f"Error: No key in JSON - {e}")
+            LOGGER.error(f"Error: No key in JSON - {e}")
             return None
         except Exception as e:
-            print(f"Error: {e}")
+            LOGGER.error(f"Error: {e}")
             return None

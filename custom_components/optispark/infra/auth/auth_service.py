@@ -2,9 +2,12 @@ from http import HTTPStatus
 
 import aiohttp
 
+from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import config_service
 from custom_components.optispark.infra.auth.model.login_response import LoginResponse
 from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError
+
+
 
 
 class AuthService:
@@ -43,11 +46,11 @@ class AuthService:
             )
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error occurred: {e}")
+            LOGGER.error(f"HTTP error occurred: {e}")
             raise OptisparkApiClientAuthenticationError(
                 "Invalid credentials",
             ) from e
         except Exception as e:
-            print(f"Unexpected error occurred: {e}")
+            LOGGER.error(f"Unexpected error occurred: {e}")
             raise
         

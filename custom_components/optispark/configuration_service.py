@@ -1,6 +1,8 @@
 import json
 import os
 
+from .const import LOGGER
+
 
 class ConfigurationService:
     _instance = None
@@ -26,10 +28,10 @@ class ConfigurationService:
             with open(file_path, "r") as file:
                 return json.load(file)
         except FileNotFoundError:
-            print(f"Error: The configuration file {self.config_file} was not found.")
+            LOGGER.error(f"Error: The configuration file {self.config_file} was not found.")
             return {}
         except json.JSONDecodeError:
-            print(
+            LOGGER.error(
                 f"Error: The configuration file {self.config_file} is not a valid JSON."
             )
             return {}

@@ -1,5 +1,6 @@
 from typing import Optional
 
+from custom_components.optispark.const import LOGGER
 from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
 from custom_components.optispark.infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
@@ -43,8 +44,8 @@ class ThermostatControlResponse:
             )
 
         except KeyError as e:
-            print(f"Error: No key in JSON - {e}")
+            LOGGER.error(f"Error: No key in JSON - {e}")
             return None
         except Exception as e:
-            print(f"Error: {e}")
+            LOGGER.error(f"Error: {e}")
             return None

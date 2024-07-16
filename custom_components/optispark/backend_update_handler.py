@@ -260,7 +260,6 @@ class BackendUpdateHandler:
 
     async def _check_running_manual_mode(self, lambda_args: dict) -> ThermostatControlResponse:
         # now = datetime.now(tz=timezone.utc)
-        # print(f'{now} - checking mode')
         data = ControlInfo(
             set_point=lambda_args["temp_set_point"],
             mode=lambda_args["heat_pump_mode_raw"]
@@ -269,7 +268,6 @@ class BackendUpdateHandler:
 
     async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""
-        # print(lambda_args.keys())
         # TODO: create class
         dynamo_data = {
             "user_hash": self.user_hash,
@@ -335,8 +333,8 @@ class BackendUpdateHandler:
         If there is no data in dynamo, upload const.HISTORY_DAYS worth of data.
         Records the when the heating profile expires and should be refreshed.
         """
-        print(f'******************************** HEATING PROFILE ******************************************')
-        LOGGER.debug(f"********** self.expire_time: {self.expire_time}")
+        LOGGER.debug(f'Fetching heating profile')
+        LOGGER.debug(f"Expire time: {self.expire_time}")
         count = 0
         await self.update_dynamo_dates(lambda_args)
         (
@@ -348,7 +346,6 @@ class BackendUpdateHandler:
         while missing_entities := self.entities_with_data_missing_from_dynamo():
             count += 1
             LOGGER.debug(f"Updating dynamo with NEW data: round ({count})")
-            print('[------------ UPDATING!!!!! ----------------]')
             await self.upload_new_history(missing_entities)
         LOGGER.debug("Upload of new history complete\n")
 

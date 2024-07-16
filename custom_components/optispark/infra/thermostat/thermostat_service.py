@@ -3,6 +3,7 @@ from typing import List
 
 import aiohttp
 
+from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import ConfigurationService, config_service
 from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError, \
     OptisparkApiClientThermostatError
@@ -50,10 +51,10 @@ class ThermostatService:
             return ThermostatControlResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error occurred: {e}")
+            LOGGER.error(f"HTTP error occurred: {e}")
             raise OptisparkApiClientThermostatError("get thermostat control error") from e
         except Exception as e:
-            print(f"Unexpected error occurred: {e}")
+            LOGGER.error(f"Unexpected error occurred: {e}")
             raise
 
     async def create_manual(
@@ -91,10 +92,10 @@ class ThermostatService:
             return ThermostatControlResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error occurred: {e}")
+            LOGGER.error(f"HTTP error occurred: {e}")
             raise OptisparkApiClientThermostatError("post thermostat manual control error") from e
         except Exception as e:
-            print(f"Unexpected error occurred: {e}")
+            LOGGER.error(f"Unexpected error occurred: {e}")
             raise
 
     async def get_graph(self, thermostat_id: int, access_token: str) -> List[ThermostatPrediction]:
@@ -128,10 +129,10 @@ class ThermostatService:
             # return ThermostatControlResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error occurred: {e}")
+            LOGGER.error(f"HTTP error occurred: {e}")
             raise OptisparkApiClientThermostatError("get graph error") from e
         except Exception as e:
-            print(f"Unexpected error occurred: {e}")
+            LOGGER.error(f"Unexpected error occurred: {e}")
             raise
 
         
