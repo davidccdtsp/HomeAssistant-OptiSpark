@@ -5,6 +5,7 @@ from custom_components.optispark.domain.value_object.address import Address
 import numpy as np
 
 from custom_components.optispark.domain.value_object.control_info import ControlInfo
+from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
 
 
 class BackendUpdateHandler:
@@ -240,20 +241,24 @@ class BackendUpdateHandler:
         Calls lambda if new heating profile is needed
         Otherwise, slowly uploads historical data
         """
-
-        if not self._check_running_manual_mode(lambda_args):
-            LOGGER.debug('Request manual mode')
+        # if not self._check_running_manual_mode(lambda_args):
+        #     LOGGER.debug('Request manual mode')
+        thermostat = await self._check_running_manual_mode(lambda_args)
+        if thermostat.mode == 'COOLING':
+            lambda_args[const.LAMBDA_SET_POINT] = thermostat.cool_set_point if thermostat.cool_set_point else 20
+        else:
+            lambda_args[const.LAMBDA_SET_POINT] = thermostat.heat_set_point if thermostat.heat_set_point else 20
 
         now = datetime.now(tz=timezone.utc)
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
-            await self.get_heating_profile(lambda_args, 1)
+            await self.get_heating_profile(lambda_args, thermostat_id=thermostat.thermostat_id)
         # else:
         #     if self.history_upload_complete is False:
         #         await self.upload_old_history()
         return self.get_closest_time(lambda_args)
 
-    async def _check_running_manual_mode(self, lambda_args: dict) -> bool:
+    async def _check_running_manual_mode(self, lambda_args: dict) -> ThermostatControlResponse:
         # now = datetime.now(tz=timezone.utc)
         # print(f'{now} - checking mode')
         data = ControlInfo(
@@ -299,8 +304,6 @@ class BackendUpdateHandler:
         """
         entities_missing = []
         LOGGER.debug("---entities_with_data_missing_from_dynamo---")
-        print('**********************')
-        print(self.active_entity_ids)
         for active_entity_id in self.active_entity_ids:
             column = self.id_to_column_name_lookup[active_entity_id]
             if self.dynamo_newest_dates[column] is None:

@@ -163,7 +163,7 @@ class OptisparkApiClient:
 
     # async def check_and_set_manual(self, data: dict):
 
-    async def check_and_set_manual(self, data: ControlInfo) -> bool:
+    async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
         """Checks if optispark is running in manual, if not set manual mode"""
 
         control = await self.get_thermostat_control()
@@ -172,16 +172,16 @@ class OptisparkApiClient:
                 f"Control in {control.status} status, requesting manual change..."
             )
             print(f" {control.status} --> generating manual control request")
-            manual_control = await self.create_manual(
+            control = await self.create_manual(
                 thermostat_id=control.thermostat_id,
                 set_point=data.set_point,
                 mode=data.mode,
             )
             print(
-                f"Created: {manual_control.status} - {manual_control.mode} - {manual_control.heat_set_point} -/"
-                f" {manual_control.cool_set_point}"
+                f"Created: {control.status} - {control.mode} - {control.heat_set_point} -/"
+                f" {control.cool_set_point}"
             )
-            return manual_control.status == ThermostatControlStatus.MANUAL
+        return control
 
     async def get_data_dates(self):
         """Call lambda and only get the newest and oldest dates in dynamo.

@@ -120,7 +120,6 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         If the heat_pump uses Farenheit then we'll need to convert Farenheit to Celcius
         """
         heat_pump_unit = entity.temperature_unit
-        # if heat_pump_unit == homeassistant.const.TEMP_CELSIUS:
         if heat_pump_unit == UnitOfTemperature.CELSIUS:
             return temp
         elif heat_pump_unit == UnitOfTemperature.FAHRENHEIT:
