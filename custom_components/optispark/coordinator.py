@@ -23,7 +23,7 @@ from . import const
 from . import get_entity
 # from . import history
 from .backend_update_handler import BackendUpdateHandler
-from .climate import OptisparkClimate
+# from .climate import OptisparkClimate
 from .const import LOGGER
 from homeassistant.helpers.entity_registry import EntityRegistry, RegistryEntry
 from homeassistant.helpers import entity_registry
@@ -156,7 +156,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
     async def update_heat_pump_temperature(self, data):
         """Set the temperature of the heat pump using the value from lambda."""
         temp: float = data[const.LAMBDA_TEMP_CONTROLS]
-        climate_entity: OptisparkClimate = get_entity(self.hass, self._climate_entity_id)
+        climate_entity = get_entity(self.hass, self._climate_entity_id)
 
         try:
             if self.heat_pump_target_temperature == temp:
