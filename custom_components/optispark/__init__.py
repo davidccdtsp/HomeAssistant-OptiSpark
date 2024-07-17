@@ -27,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up this integration using UI."""
     from .backend_update_handler import BackendUpdateHandler  # Prevent circular import
     from .coordinator import OptisparkDataUpdateCoordinator
+    from .climate import OptisparkClimate
 
     address = Address(
         address=entry.data["address"],

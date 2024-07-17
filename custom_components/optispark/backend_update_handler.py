@@ -206,7 +206,7 @@ class BackendUpdateHandler:
                 f"    len(missing_old_histories_states): {len(missing_old_histories_states)}"
             )
             missing_old_histories_states = missing_old_histories_states[
-                -const.MAX_UPLOAD_HISTORY_READINGS :
+                -const.MAX_UPLOAD_HISTORY_READINGS:
             ]
 
             histories[column], constant_attributes[column] = (
@@ -264,7 +264,7 @@ class BackendUpdateHandler:
             set_point=lambda_args["temp_set_point"],
             mode=lambda_args["heat_pump_mode_raw"]
         )
-        return await self.client.check_and_set_manual(data)
+        return await self.client.set_manual(data)
 
     async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""

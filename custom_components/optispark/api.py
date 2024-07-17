@@ -270,6 +270,37 @@ class OptisparkApiClient:
             )
             return to_thermostat_info(control)
 
+    async def set_manual(self, data: ControlInfo) -> ThermostatControlResponse | None:
+        """Sends manual request to backend"""
+        response = None
+        await self._check_location_and_device()
+        mode = WorkingMode.from_string(data.mode)
+        heat_set_point = data.set_point
+        cool_set_point = data.set_point
+        if mode == WorkingMode.COOLING:
+            heat_set_point = None
+        if mode == WorkingMode.HEATING:
+            cool_set_point = None
+        request = ThermostatControlRequest(
+            mode=mode,
+            heat_set_point=heat_set_point,
+            cool_set_point=cool_set_point
+        )
+        LOGGER.debug('Post thermostat control request')
+        LOGGER.debug(request)
+        token = await self._auth_service.token
+        locations = await self._location_service.get_locations(token)
+        if locations[0]:
+            response = await self._thermostat_service.create_manual(
+                thermostat_id=locations[0].thermostat_id,
+                request=request,
+                access_token=token
+            )
+        return response
+        # request =
+
+
+    # TODO, remove this method
     async def create_manual(
         self, thermostat_id: int, set_point: float, mode: str
     ) -> ThermostatControlResponse:

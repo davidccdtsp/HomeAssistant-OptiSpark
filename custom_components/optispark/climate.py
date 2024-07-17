@@ -71,7 +71,6 @@ class OptisparkClimate(OptisparkEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs):
         """Utilised when the heat pump is in either heat or cooling only mode."""
         self._target_temperature = kwargs['temperature']
-
         lambda_args = self.coordinator.lambda_args
         lambda_args[const.LAMBDA_SET_POINT] = self._target_temperature
         await self.coordinator.async_set_lambda_args(lambda_args)

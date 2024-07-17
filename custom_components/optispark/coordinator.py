@@ -23,6 +23,7 @@ from . import const
 from . import get_entity
 # from . import history
 from .backend_update_handler import BackendUpdateHandler
+from .climate import OptisparkClimate
 from .const import LOGGER
 from homeassistant.helpers.entity_registry import EntityRegistry, RegistryEntry
 from homeassistant.helpers import entity_registry
@@ -35,6 +36,7 @@ from .domain.exception.exception import OptisparkSetTemperatureError
 from homeassistant.const import UnitOfTemperature
 
 from .domain.thermostat.thermostat_info import ThermostatInfo
+from .domain.value_object.control_info import ControlInfo
 
 
 class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
@@ -86,6 +88,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             const.LAMBDA_ADDRESS: self._address,
             const.LAMBDA_CITY: self._city,
         }
+        self._previous_lambda_args = self._lambda_args
         self._lambda_update_handler = BackendUpdateHandler(
             hass=self.hass,
             client=self.client,
@@ -153,7 +156,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
     async def update_heat_pump_temperature(self, data):
         """Set the temperature of the heat pump using the value from lambda."""
         temp: float = data[const.LAMBDA_TEMP_CONTROLS]
-        climate_entity = get_entity(self.hass, self._climate_entity_id)
+        climate_entity: OptisparkClimate = get_entity(self.hass, self._climate_entity_id)
 
         try:
             if self.heat_pump_target_temperature == temp:
@@ -231,6 +234,18 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         """
         self._lambda_args = lambda_args
         self._lambda_update_handler.manual_update = True
+
+        temp = lambda_args[const.LAMBDA_SET_POINT]
+        previous_temp = self._previous_lambda_args[const.LAMBDA_SET_POINT]
+        if temp and previous_temp and temp != previous_temp:
+            info = ControlInfo(
+                set_point=temp,
+                mode=lambda_args[const.LAMBDA_HEAT_PUMP_MODE_RAW]
+            )
+            thermostat_control_response = await self.client.set_manual(info)
+            if not thermostat_control_response:
+                LOGGER.error(f'Unable to update thermostat control on OptisPark backend')
+        self._previous_lambda_args = lambda_args
         await self.async_request_update()
 
     @property

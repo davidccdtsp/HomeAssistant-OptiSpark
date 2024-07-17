@@ -33,3 +33,6 @@ class ThermostatControlRequest:
 
         return result
 
+    def __str__(self):
+        return f'mode:{self.mode} - heat point: {self.heat_set_point} - cool point: {self.cool_set_point}'
+
