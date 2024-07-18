@@ -43,14 +43,15 @@ class AuthService:
                 ) from Exception
 
             json_response = await response.json()
-            # self._token = json_response["accessToken"]
-
-            return LoginResponse(
+            self._token = json_response["accessToken"]
+            self._login_response = LoginResponse(
                 token=json_response["accessToken"],
                 token_type=json_response["tokenType"],
                 has_locations=json_response["hasLocations"],
                 has_devices=json_response["hasDevices"],
             )
+
+            return self._login_response
 
         except aiohttp.ClientError as e:
             LOGGER.error(f"HTTP error occurred: {e}")

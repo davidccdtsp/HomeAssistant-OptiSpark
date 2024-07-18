@@ -9,13 +9,14 @@ from geopy.geocoders import Nominatim
 import hashlib
 import traceback
 
-from .api import (
-    OptisparkApiClientPostcodeError,
-    OptisparkApiClientUnitError,
-)
+# from .api import (
+#     OptisparkApiClientPostcodeError,
+#     OptisparkApiClientUnitError,
+# )
 from . import OptisparkGetEntityError
 from .const import DOMAIN, LOGGER
 from . import get_entity, get_username
+from .infra.exception.exceptions import OptisparkApiClientPostcodeError, OptisparkApiClientUnitError
 
 
 class OptisparkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):

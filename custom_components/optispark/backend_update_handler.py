@@ -6,6 +6,7 @@ import numpy as np
 
 from custom_components.optispark.domain.value_object.control_info import ControlInfo
 from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
 
 class BackendUpdateHandler:
@@ -41,6 +42,8 @@ class BackendUpdateHandler:
         self.expire_time = datetime(
             1, 1, 1, 0, 0, 0, tzinfo=timezone.utc
         )  # Already expired
+        # Interval to upload device data (in seconds)
+        self.update_device_data_countdown = const.UPDATE_DEVICE_DATA_INTERVAL
         self.manual_update = False
         self.history_upload_complete = False
         self.outside_range_flag = False
@@ -49,7 +52,7 @@ class BackendUpdateHandler:
             heat_pump_power_entity_id: const.DATABASE_COLUMN_SENSOR_HEAT_PUMP_POWER,
             external_temp_entity_id: const.DATABASE_COLUMN_SENSOR_EXTERNAL_TEMPERATURE,
         }
-        LOGGER.debug(f"{self.user_hash = }")
+        # LOGGER.debug(f"{self.user_hash = }")
         # Entity ids will be None if they are optional and not enabled
         self.active_entity_ids = []
         for entity_id in [
@@ -101,26 +104,18 @@ class BackendUpdateHandler:
         constant_attributes = {}
 
         async def debug_check_history_length(days):
-            history_states = await history.get_state_changes(
-                self.hass, active_entity_id, days
-            )
-            LOGGER.debug(f"---------- days: {days} ----------")
-            LOGGER.debug(
-                f'  history_states[0]: {history_states[0].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
-            )
-            LOGGER.debug(
-                f'  history_states[-1]: {history_states[-1].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
-            )
-
+            # history_states = await history.get_state_changes(
+            #     self.hass, active_entity_id, days
+            # )
             history_states = await history.get_state_changes_period(
                 self.hass, active_entity_id, days
             )
-            LOGGER.debug(
-                f'  history_states[0]: {history_states[0].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
-            )
-            LOGGER.debug(
-                f'  history_states[-1]: {history_states[-1].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
-            )
+            # LOGGER.debug(
+            #     f'  history_states[0]: {history_states[0].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
+            # )
+            # LOGGER.debug(
+            #     f'  history_states[-1]: {history_states[-1].last_updated.strftime("%Y-%m-%d %H:%M:%S")}'
+            # )
 
         for active_entity_id in missing_entities:
             column = self.id_to_column_name_lookup[active_entity_id]
@@ -198,13 +193,9 @@ class BackendUpdateHandler:
                 history_states, column
             )
 
-            LOGGER.debug(f"  column: {column}")
             if len(missing_old_histories_states) == 0:
                 LOGGER.debug(f"    ({column}) - Upload complete")
                 continue
-            LOGGER.debug(
-                f"    len(missing_old_histories_states): {len(missing_old_histories_states)}"
-            )
             missing_old_histories_states = missing_old_histories_states[
                 -const.MAX_UPLOAD_HISTORY_READINGS:
             ]
@@ -241,9 +232,9 @@ class BackendUpdateHandler:
         Calls lambda if new heating profile is needed
         Otherwise, slowly uploads historical data
         """
-        # if not self._check_running_manual_mode(lambda_args):
-        #     LOGGER.debug('Request manual mode')
+        await self.client.check_location_and_device()
         thermostat = await self._check_running_manual_mode(lambda_args)
+        # Temporal Fix, heat_set_point could be None
         if thermostat.mode == 'COOLING':
             lambda_args[const.LAMBDA_SET_POINT] = thermostat.cool_set_point if thermostat.cool_set_point else 20
         else:
@@ -253,18 +244,27 @@ class BackendUpdateHandler:
         # This probably won't result in a smooth transition
         if self.expire_time - now < timedelta(hours=0) or self.manual_update:
             await self.get_heating_profile(lambda_args, thermostat_id=thermostat.thermostat_id)
-        # else:
-        #     if self.history_upload_complete is False:
-        #         await self.upload_old_history()
+
+        # Updates counter
+        self.update_device_data_countdown = self.update_device_data_countdown - const.UPDATE_INTERVAL
+        if self.update_device_data_countdown <= 0:
+            self.update_device_data_countdown = const.UPDATE_DEVICE_DATA_INTERVAL
+            await self._update_device_data(lambda_args)
+
         return self.get_closest_time(lambda_args)
 
+    async def _update_device_data(self, lambda_args):
+        await self.client.update_device_data(lambda_args)
+
     async def _check_running_manual_mode(self, lambda_args: dict) -> ThermostatControlResponse:
-        # now = datetime.now(tz=timezone.utc)
-        data = ControlInfo(
-            set_point=lambda_args["temp_set_point"],
-            mode=lambda_args["heat_pump_mode_raw"]
-        )
-        return await self.client.set_manual(data)
+        thermostat_control = await self.client.get_thermostat_control()
+        if thermostat_control.status != ThermostatControlStatus.MANUAL:
+            data = ControlInfo(
+                set_point=lambda_args["temp_set_point"],
+                mode=lambda_args["heat_pump_mode_raw"]
+            )
+            return await self.client.set_manual(data)
+        return thermostat_control
 
     async def update_dynamo_dates(self, lambda_args: dict):
         """Call the lambda function and get the oldest and newest dates in dynamodb."""
@@ -301,7 +301,6 @@ class BackendUpdateHandler:
         return those entities.
         """
         entities_missing = []
-        LOGGER.debug("---entities_with_data_missing_from_dynamo---")
         for active_entity_id in self.active_entity_ids:
             column = self.id_to_column_name_lookup[active_entity_id]
             if self.dynamo_newest_dates[column] is None:
@@ -354,7 +353,6 @@ class BackendUpdateHandler:
         self.expire_time = self.lambda_results[const.LAMBDA_TIMESTAMP][-1]
         # The backend will currently only update upon a new day. FIX!
         self.expire_time = self.expire_time + timedelta(hours=1, minutes=30)
-        LOGGER.debug(f"---------- self.expire_time: {self.expire_time}")
         self.manual_update = False
 
     async def call_lambda(self, lambda_args):
@@ -364,7 +362,6 @@ class BackendUpdateHandler:
         If there is no data in dynamo, upload const.HISTORY_DAYS worth of data.
         Records the when the heating profile expires and should be refreshed.
         """
-        LOGGER.debug(f"********** self.expire_time: {self.expire_time}")
         count = 0
         await self.update_dynamo_dates(lambda_args)
         await self.update_ha_dates()
@@ -379,7 +376,6 @@ class BackendUpdateHandler:
         self.expire_time = self.lambda_results[const.LAMBDA_TIMESTAMP][-1]
         # The backend will currently only update upon a new day. FIX!
         self.expire_time = self.expire_time + timedelta(hours=1, minutes=30)
-        LOGGER.debug(f"---------- self.expire_time: {self.expire_time}")
         self.manual_update = False
 
     def get_closest_time(self, lambda_args):

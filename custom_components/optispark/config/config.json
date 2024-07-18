@@ -4,10 +4,11 @@
     "baseUrl": "http://localhost:5000",
     "verifySSL": false,
     "location": {
-      "base": "/location/"
+      "base": "location"
     },
     "device": {
-      "base": "/device/"
+      "base": "device",
+      "data": "device/{device_id}/current-demo-data"
     },
     "thermostat": {
       "control": "thermostat/{thermostat_id}/control",

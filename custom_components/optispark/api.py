@@ -10,6 +10,8 @@ import aiohttp
 # import async_timeout
 from decimal import Decimal
 from datetime import datetime, timezone
+
+from . import const
 # import pickle
 # import gzip
 # import base64
@@ -27,9 +29,10 @@ from .domain.value_object.control_info import ControlInfo
 from .infra.auth.auth_service import AuthService
 from .infra.auth.model.login_response import LoginResponse
 from .infra.device.device_service import DeviceService
+from .infra.device.model.device_data_request import DeviceDataRequest
 from .infra.device.model.device_request import DeviceRequest
 from .infra.device.model.device_response import DeviceResponse
-from .infra.exception.exceptions import *
+from .infra.exception.exceptions import OptisparkApiClientAuthenticationError
 from .infra.location.location_service import LocationService
 from .infra.location.model.location_request import (
     LocationRequest,
@@ -135,7 +138,7 @@ class OptisparkApiClient:
     # TODO: remove this method
     async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
         """Checks if optispark is running in manual, if not set manual mode"""
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.info(
@@ -162,7 +165,7 @@ class OptisparkApiClient:
         LOGGER.debug(self._user_hash)
         # and updates if necessary
         # await self._check_token_and_login()
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         token = await self._auth_service.token
         # await self._check_location_and_device()
         control = await self.get_thermostat_control()
@@ -199,7 +202,7 @@ class OptisparkApiClient:
         # LOGGER.debug(lambda_args)
         payload = lambda_args
         payload["get_profile_only"] = True
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         if not self._graph_data:
             token = await self._auth_service.token
             # await self._check_token_and_login()
@@ -244,7 +247,7 @@ class OptisparkApiClient:
         # if not token:
             # await self._check_token_and_login()
             # await self._check_location_and_device()
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
@@ -260,7 +263,7 @@ class OptisparkApiClient:
         # if not token:
             # await self._check_token_and_login()
             # await self._check_location_and_device()
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
@@ -273,7 +276,7 @@ class OptisparkApiClient:
     async def set_manual(self, data: ControlInfo) -> ThermostatControlResponse | None:
         """Sends manual request to backend"""
         response = None
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         mode = WorkingMode.from_string(data.mode)
         heat_set_point = data.set_point
         cool_set_point = data.set_point
@@ -299,12 +302,10 @@ class OptisparkApiClient:
         return response
         # request =
 
-
-    # TODO, remove this method
     async def create_manual(
         self, thermostat_id: int, set_point: float, mode: str
     ) -> ThermostatControlResponse:
-        await self._check_location_and_device()
+        # await self._check_location_and_device()
         request = ThermostatControlRequest(
             mode=WorkingMode.from_string(mode),
             heat_set_point=set_point,
@@ -316,114 +317,18 @@ class OptisparkApiClient:
         )
         return result
 
-    # def json_serialisable(self, data):
-    #     """Convert to compressed bytes so that data can be converted to json."""
-    #     uncompressed_data = pickle.dumps(data)
-    #     compressed_data = gzip.compress(uncompressed_data)
-    #     LOGGER.debug(f"len(uncompressed_data): {len(uncompressed_data)}")
-    #     LOGGER.debug(f"len(compressed_data): {len(compressed_data)}")
-    #     base64_string = base64.b64encode(compressed_data).decode("utf-8")
-    #     return base64_string
-    #
-    # def json_deserialise(self, payload):
-    #     """Convert from the compressed bytes to original objects."""
-    #     # payload = payload["serialised_payload"]
-    #     # payload = payload["serialisePayload"]
-    #     payload = base64.b64decode(payload)
-    #     payload = gzip.decompress(payload)
-    #     payload = pickle.loads(payload)
-    #     return payload
+    async def check_location_and_device(self):
 
-    # async def _api_wrapper(self, method: str, url: str, data: dict):
-    #     """Call the Lambda function."""
-    #
-    #     # if not await self._auth_service.token:
-    #     #     # If user is not logged perform login process
-    #     #     await self._check_token_and_login()
-    #     #     await self._check_location_and_device()
-    #
-    #     try:
-    #         if "dynamo_data" in data:
-    #             data["dynamo_data"] = floats_to_decimal(data["dynamo_data"])
-    #         data_serialised = self.json_serialisable(data)
-    #
-    #         async with async_timeout.timeout(120):
-    #             # await self._check_token_and_login()
-    #             # await self._check_location_and_device()
-    #
-    #             response = await self._session.request(
-    #                 method=method,
-    #                 url=url,
-    #                 json=data_serialised,
-    #             )
-    #             if response.status in (401, 403):
-    #                 # Clean token forcing login in next api_wrapper call
-    #                 raise OptisparkApiClientAuthenticationError(
-    #                     "Invalid credentials",
-    #                 )
-    #
-    #             if response.status == 502:
-    #                 # HomeAssistant will not print errors if there was never a successful update
-    #                 LOGGER.debug(
-    #                     "OptisparkApiClientCommunicationError:\n  502 Bad Gateway - check payload"
-    #                 )
-    #                 raise OptisparkApiClientCommunicationError(
-    #                     "502 Bad Gateway - check payload"
-    #                 )
-    #             response.raise_for_status()
-    #             payload = await response.json()
-    #             return self.json_deserialise(payload)
-    #
-    #     except asyncio.TimeoutError as exception:
-    #         LOGGER.error(traceback.format_exc())
-    #         LOGGER.error(
-    #             "OptisparkApiClientTimeoutError:\n  Timeout error fetching information"
-    #         )
-    #         raise OptisparkApiClientTimeoutError(
-    #             "Timeout error fetching information",
-    #         ) from exception
-    #     except (aiohttp.ClientError, socket.gaierror) as exception:
-    #         LOGGER.error(traceback.format_exc())
-    #         LOGGER.error(
-    #             "OptisparkApiClientCommunicationError:\n  Error fetching information"
-    #         )
-    #         raise OptisparkApiClientCommunicationError(
-    #             "Error fetching information",
-    #         ) from exception
-    #     except Exception as exception:  # pylint: disable=broad-except
-    #         LOGGER.error(traceback.format_exc())
-    #         LOGGER.error("OptisparkApiClientError:\n  Something really wrong happened!")
-    #         raise OptisparkApiClientError(
-    #             "Something really wrong happened!"
-    #         ) from exception
+        if self._has_locations and self._has_devices:
+            return
 
-    # async def _check_token_and_login(self):
-    #     """
-    #     Makes home asssistant login into OptiSpark backend.
-    #     checks if user has locations and devices
-    #     if not create locataion and device
-    #     """
-    #
-    #     if not await self._auth_service.token:
-    #         LOGGER.debug(f" Initiating login into OptiSpark backend")
-    #         # user_hash = data["user_hash"]
-    #         if self._user_hash:
-    #             login_response: LoginResponse = await self._auth_service.login(
-    #                 user_hash=self._user_hash
-    #             )
-    #
-    #             self._has_locations = login_response.has_locations
-    #             self._has_devices = login_response.has_devices
-    #             LOGGER.debug(f" User token: {login_response.token}")
-    #
-    #     # LOGGER.info(f'Token is valid ---> {valid}')
-
-    async def _check_location_and_device(self):
-        login_response = self._auth_service.login_response
+        login_response = await self._auth_service.login()
         if not login_response:
             login_response: LoginResponse = await self._auth_service.login()
+
         self._has_locations = login_response.has_locations
         self._has_devices = login_response.has_devices
+
         token = login_response.token
         location: LocationResponse | None = None
         if not self._has_locations:
@@ -439,7 +344,6 @@ class OptisparkApiClient:
                     "tariff_code": TARIFF_CODE,
                 },
             )
-            # LOGGER.debug(f"{location_request}")
             location: (
                 LocationResponse | None
             ) = await self._location_service.add_location(
@@ -469,3 +373,43 @@ class OptisparkApiClient:
             )
 
             self._has_devices = True if device_response else False
+
+    async def update_device_data(self, lambda_args):
+
+        internal_temp = None
+        humidity = None
+        power = None
+        temp_range = None
+        set_point = None
+
+        if const.LAMBDA_OPTIMISED_DEMAND in lambda_args:
+            power = lambda_args[const.LAMBDA_OPTIMISED_DEMAND]
+        if const.LAMBDA_INITIAL_INTERNAL_TEMP in lambda_args:
+            set_point = lambda_args[const.LAMBDA_INITIAL_INTERNAL_TEMP]
+        if const.LAMBDA_SET_POINT in lambda_args:
+            set_point = lambda_args[const.LAMBDA_SET_POINT]
+        if const.LAMBDA_INITIAL_INTERNAL_TEMP in lambda_args:
+            internal_temp = lambda_args[const.LAMBDA_INITIAL_INTERNAL_TEMP]
+        if const.LAMBDA_TEMP_RANGE in lambda_args:
+            temp_range = lambda_args[const.LAMBDA_TEMP_RANGE]
+
+        if set_point and temp_range and internal_temp:
+
+            request = DeviceDataRequest(
+                internal_temp=internal_temp,
+                humidity=humidity,
+                power=power,
+                mode=WorkingMode.HEATING,
+                heat_set_point=set_point,
+                cool_set_point=None,
+
+            )
+            token = await self._auth_service.token
+            devices: [DeviceResponse] = await self._location_service.get_locations(access_token=token)
+
+            # 🐷 SAFETY PIG: assuming only one location and device per user
+            if devices[0]:
+                device_id = devices[0].id
+                token = await self._auth_service.token
+                await self._device_service.add_device_data(device_id=device_id, request=request, access_token=token)
+

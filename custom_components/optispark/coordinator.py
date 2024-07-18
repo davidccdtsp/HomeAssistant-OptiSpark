@@ -14,12 +14,8 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.components.climate import ClimateEntityFeature
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
-from .api import (
-    OptisparkApiClient,
-    OptisparkApiClientAuthenticationError,
-    OptisparkApiClientError,
-)
-from . import const
+
+from . import const, OptisparkApiClient
 from . import get_entity
 # from . import history
 from .backend_update_handler import BackendUpdateHandler
@@ -37,6 +33,7 @@ from homeassistant.const import UnitOfTemperature
 
 from .domain.thermostat.thermostat_info import ThermostatInfo
 from .domain.value_object.control_info import ControlInfo
+from .infra.exception.exceptions import OptisparkApiClientAuthenticationError, OptisparkApiClientError
 
 
 class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
@@ -62,7 +59,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             hass=hass,
             logger=const.LOGGER,
             name=const.DOMAIN,
-            update_interval=timedelta(seconds=10),
+            update_interval=timedelta(seconds=const.UPDATE_INTERVAL),
         )
         self._postcode = postcode if postcode is not None else "AB11 6LU"
         self._tariff = tariff
@@ -84,6 +81,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             const.LAMBDA_INITIAL_INTERNAL_TEMP: None,
             const.LAMBDA_OUTSIDE_RANGE: False,
             const.LAMBDA_HEAT_PUMP_MODE_RAW: "HEATING",
+            const.LAMBDA_OPTIMISED_DEMAND: None,
             const.LAMBDA_HOME_ASSISTANT_VERSION: const.VERSION,
             const.LAMBDA_ADDRESS: self._address,
             const.LAMBDA_CITY: self._city,
@@ -316,6 +314,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         Updates the initial_internal_temp and checks outside_range.
         """
         self._lambda_args[const.LAMBDA_INITIAL_INTERNAL_TEMP] = self.internal_temp
+        self._lambda_args[const.LAMBDA_OPTIMISED_DEMAND] = self.heat_pump_power_usage
         if (
             abs(self.internal_temp - self._lambda_args[const.LAMBDA_SET_POINT])
             > self._lambda_args[const.LAMBDA_TEMP_RANGE]
@@ -324,8 +323,6 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             self._lambda_args[const.LAMBDA_OUTSIDE_RANGE] = False
 
-        # self._lambda_args[const.LAMBDA_ADDRESS] = self._address
-        # self._lambda_args[const.LAMBDA_POSTCODE] = self._postcode
         return self._lambda_args
 
     @property
@@ -351,6 +348,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
             # Integration is disabled, don't call lambda
             return self.data
         try:
+            # self.lambda_args[const.LAMBDA_OPTIMISED_DEMAND] =
             data = await self._lambda_update_handler(self.lambda_args)
             await self.update_heat_pump_temperature(data)
             self._available = True
