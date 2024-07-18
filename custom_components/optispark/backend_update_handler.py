@@ -248,6 +248,7 @@ class BackendUpdateHandler:
         # Updates counter
         self.update_device_data_countdown = self.update_device_data_countdown - const.UPDATE_INTERVAL
         if self.update_device_data_countdown <= 0:
+            LOGGER.debug('Sending device data to OptiSpark backend')
             self.update_device_data_countdown = const.UPDATE_DEVICE_DATA_INTERVAL
             await self._update_device_data(lambda_args)
 

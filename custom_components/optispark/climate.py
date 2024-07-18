@@ -73,6 +73,7 @@ class OptisparkClimate(OptisparkEntity, ClimateEntity):
         self._target_temperature = kwargs['temperature']
         lambda_args = self.coordinator.lambda_args
         lambda_args[const.LAMBDA_SET_POINT] = self._target_temperature
+        lambda_args[const.LAMBDA_TEMP_CHANGED] = True
         await self.coordinator.async_set_lambda_args(lambda_args)
 
     @property

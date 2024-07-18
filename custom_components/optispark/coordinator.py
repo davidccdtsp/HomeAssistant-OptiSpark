@@ -234,8 +234,7 @@ class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):
         self._lambda_update_handler.manual_update = True
 
         temp = lambda_args[const.LAMBDA_SET_POINT]
-        previous_temp = self._previous_lambda_args[const.LAMBDA_SET_POINT]
-        if temp and previous_temp and temp != previous_temp:
+        if lambda_args[const.LAMBDA_TEMP_CHANGED] is True:
             info = ControlInfo(
                 set_point=temp,
                 mode=lambda_args[const.LAMBDA_HEAT_PUMP_MODE_RAW]
