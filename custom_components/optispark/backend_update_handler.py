@@ -1,12 +1,11 @@
 from datetime import datetime, timezone, timedelta
 
 from custom_components.optispark import OptisparkApiClient, const, LOGGER, history
-from custom_components.optispark.domain.value_object.address import Address
 import numpy as np
 
-from custom_components.optispark.domain.value_object.control_info import ControlInfo
-from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
-from custom_components.optispark.infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from custom_components.optispark.domain.control.control_info import ControlInfo
+from custom_components.optispark.backend.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.backend.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
 
 class BackendUpdateHandler:

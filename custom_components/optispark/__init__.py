@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import OptisparkApiClient
 from .const import DOMAIN, LOGGER
-from .domain.value_object.address import Address
+from custom_components.optispark.domain.address.address import Address
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,

@@ -1,8 +1,8 @@
 from homeassistant.components.climate import HVACMode
 
 from custom_components.optispark.domain.thermostat.thermostat_info import ThermostatInfo
-from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
-from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.backend.shared.model.working_mode import WorkingMode
+from custom_components.optispark.backend.thermostat.model.thermostat_control_response import ThermostatControlResponse
 
 
 def to_thermostat_info(control: ThermostatControlResponse) -> ThermostatInfo:

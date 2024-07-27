@@ -32,8 +32,8 @@ from .domain.exception.exception import OptisparkSetTemperatureError
 from homeassistant.const import UnitOfTemperature
 
 from .domain.thermostat.thermostat_info import ThermostatInfo
-from .domain.value_object.control_info import ControlInfo
-from .infra.exception.exceptions import OptisparkApiClientAuthenticationError, OptisparkApiClientError
+from .domain.control.control_info import ControlInfo
+from .backend.exception.exceptions import OptisparkApiClientAuthenticationError, OptisparkApiClientError
 
 
 class OptisparkDataUpdateCoordinator(DataUpdateCoordinator):

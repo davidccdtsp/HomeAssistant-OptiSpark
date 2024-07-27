@@ -6,10 +6,10 @@ from aiohttp import ClientResponse
 
 from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import config_service
-from custom_components.optispark.infra.device.model.device_data_request import DeviceDataRequest
-from custom_components.optispark.infra.device.model.device_request import DeviceRequest
-from custom_components.optispark.infra.device.model.device_response import DeviceResponse
-from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError, \
+from custom_components.optispark.backend.device.model.device_data_request import DeviceDataRequest
+from custom_components.optispark.backend.device.model.device_request import DeviceRequest
+from custom_components.optispark.backend.device.model.device_response import DeviceResponse
+from custom_components.optispark.backend.exception.exceptions import OptisparkApiClientAuthenticationError, \
     OptisparkApiClientDeviceError
 
 

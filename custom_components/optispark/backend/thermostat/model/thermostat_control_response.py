@@ -1,8 +1,8 @@
 from typing import Optional
 
 from custom_components.optispark.const import LOGGER
-from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
-from custom_components.optispark.infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from custom_components.optispark.backend.shared.model.working_mode import WorkingMode
+from custom_components.optispark.backend.thermostat.model.thermostat_control_status import ThermostatControlStatus
 
 
 class ThermostatControlResponse:

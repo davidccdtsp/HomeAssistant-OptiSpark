@@ -1,52 +1,42 @@
 """Optispark API Client."""
 
 from __future__ import annotations
-
-# import asyncio
-# import socket
 from typing import List
 
 import aiohttp
-# import async_timeout
+
 from decimal import Decimal
 from datetime import datetime, timezone
 
 from . import const
-# import pickle
-# import gzip
-# import base64
-#
-# from homeassistant.core import async_get_hass, HomeAssistant
+
 
 from .configuration_service import ConfigurationService, config_service
 from .const import LOGGER, TARIFF_PRODUCT_CODE, TARIFF_CODE
-# import traceback
-# from http import HTTPStatus
 
 from .domain.thermostat.thermostat_info import ThermostatInfo
-from .domain.value_object.address import Address
-from .domain.value_object.control_info import ControlInfo
-from .infra.auth.auth_service import AuthService
-from .infra.auth.model.login_response import LoginResponse
-from .infra.device.device_service import DeviceService
-from .infra.device.model.device_data_request import DeviceDataRequest
-from .infra.device.model.device_request import DeviceRequest
-from .infra.device.model.device_response import DeviceResponse
-from .infra.exception.exceptions import OptisparkApiClientAuthenticationError
-from .infra.location.location_service import LocationService
-from .infra.location.model.location_request import (
+from custom_components.optispark.domain.address.address import Address
+from .domain.control.control_info import ControlInfo
+from .backend.auth.auth_service import AuthService
+from .backend.auth.model.login_response import LoginResponse
+from .backend.device.device_service import DeviceService
+from .backend.device.model.device_data_request import DeviceDataRequest
+from .backend.device.model.device_request import DeviceRequest
+from .backend.device.model.device_response import DeviceResponse
+from .backend.location.location_service import LocationService
+from .backend.location.model.location_request import (
     LocationRequest,
 )
-from .infra.location.model.location_response import LocationResponse
+from .backend.location.model.location_response import LocationResponse
 
-from .infra.shared.model.working_mode import WorkingMode
-from .infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
-from .infra.thermostat.model.thermostat_control_response import (
+from .backend.shared.model.working_mode import WorkingMode
+from .backend.thermostat.model.thermostat_control_request import ThermostatControlRequest
+from .backend.thermostat.model.thermostat_control_response import (
     ThermostatControlResponse,
 )
-from .infra.thermostat.model.thermostat_control_status import ThermostatControlStatus
-from .infra.thermostat.model.thermostat_prediction import ThermostatPrediction
-from .infra.thermostat.thermostat_service import ThermostatService
+from .backend.thermostat.model.thermostat_control_status import ThermostatControlStatus
+from .backend.thermostat.model.thermostat_prediction import ThermostatPrediction
+from .backend.thermostat.thermostat_service import ThermostatService
 from .utils import to_thermostat_info
 
 BACKEND_URL = "backend.url"
@@ -104,7 +94,6 @@ class OptisparkApiClient:
         self._session = session
         self._user_hash = user_hash
         self._address = address
-        # self._token = None
         self._has_locations = False
         self._has_devices = False
         self._auth_service = AuthService(session=session, user_hash=user_hash)
@@ -121,24 +110,9 @@ class OptisparkApiClient:
             d[key] = d[key].replace(tzinfo=timezone.utc)
         return d
 
-    # async def upload_history(self, dynamo_data):
-    #     """Upload historical data to dynamoDB without calculating heat pump profile."""
-    #     url = self._config_service.get(BACKEND_URL)
-    #     payload = {"dynamo_data": dynamo_data}
-    #     payload["upload_only"] = True
-    #     extra = await self._api_wrapper(
-    #         method="post",
-    #         url=url,
-    #         data=payload,
-    #     )
-    #     oldest_dates = self.datetime_set_utc(extra["oldest_dates"])
-    #     newest_dates = self.datetime_set_utc(extra["newest_dates"])
-    #     return oldest_dates, newest_dates
-
     # TODO: remove this method
     async def check_and_set_manual(self, data: ControlInfo) -> ThermostatControlResponse:
         """Checks if optispark is running in manual, if not set manual mode"""
-        # await self._check_location_and_device()
         control = await self.get_thermostat_control()
         if not control.status == ThermostatControlStatus.MANUAL:
             LOGGER.info(
@@ -163,11 +137,7 @@ class OptisparkApiClient:
 
         # 3f009bbd4f13f05061d40e980c86e817c60835017a152d3bf3efa089196665d9
         LOGGER.debug(self._user_hash)
-        # and updates if necessary
-        # await self._check_token_and_login()
-        # await self._check_location_and_device()
         token = await self._auth_service.token
-        # await self._check_location_and_device()
         control = await self.get_thermostat_control()
         self._graph_data: List[
             ThermostatPrediction
@@ -199,13 +169,10 @@ class OptisparkApiClient:
     async def async_get_profile(self, lambda_args: dict):
         """Get heat pump profile only."""
         LOGGER.debug("Fetching profile")
-        # LOGGER.debug(lambda_args)
         payload = lambda_args
         payload["get_profile_only"] = True
-        # await self._check_location_and_device()
         if not self._graph_data:
             token = await self._auth_service.token
-            # await self._check_token_and_login()
             control = await self.get_thermostat_control()
             self._graph_data: List[
                 ThermostatPrediction
@@ -244,14 +211,9 @@ class OptisparkApiClient:
     async def get_thermostat_control(self) -> ThermostatControlResponse:
         LOGGER.debug('Fetching thermostat control')
         token = await self._auth_service.token
-        # if not token:
-            # await self._check_token_and_login()
-            # await self._check_location_and_device()
-        # await self._check_location_and_device()
         locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
-            # LOGGER.debug(f"Getting thermostat control mode")
             control = await self._thermostat_service.get_control(
                 thermostat_id=thermostat_id, access_token=token
             )
@@ -260,10 +222,6 @@ class OptisparkApiClient:
 
     async def get_thermostat_info(self) -> ThermostatInfo:
         token = await self._auth_service.token
-        # if not token:
-            # await self._check_token_and_login()
-            # await self._check_location_and_device()
-        # await self._check_location_and_device()
         locations = await self._location_service.get_locations(token)
         if locations[0]:
             thermostat_id = locations[0].thermostat_id
@@ -276,7 +234,6 @@ class OptisparkApiClient:
     async def set_manual(self, data: ControlInfo) -> ThermostatControlResponse | None:
         """Sends manual request to backend"""
         response = None
-        # await self._check_location_and_device()
         mode = WorkingMode.from_string(data.mode)
         heat_set_point = data.set_point
         cool_set_point = data.set_point
@@ -305,7 +262,6 @@ class OptisparkApiClient:
     async def create_manual(
         self, thermostat_id: int, set_point: float, mode: str
     ) -> ThermostatControlResponse:
-        # await self._check_location_and_device()
         request = ThermostatControlRequest(
             mode=WorkingMode.from_string(mode),
             heat_set_point=set_point,

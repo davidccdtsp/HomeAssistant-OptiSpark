@@ -4,12 +4,10 @@ import aiohttp
 import jwt
 import time
 
-from aiohttp import ClientSession
-
 from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import config_service
-from custom_components.optispark.infra.auth.model.login_response import LoginResponse
-from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError
+from custom_components.optispark.backend.auth.model.login_response import LoginResponse
+from custom_components.optispark.backend.exception.exceptions import OptisparkApiClientAuthenticationError
 
 
 class AuthService:
@@ -84,15 +82,3 @@ class AuthService:
             return True
         except jwt.DecodeError:
             return True
-
-    # def is_token_expired(self, token: str):
-    #     try:
-    #         # Decodificar el payload del token JWT sin verificar la firma
-    #         payload = jwt.decode(token, options={"verify_signature": False})
-    #         exp_timestamp = payload.get('exp', 0)
-    #         current_timestamp = time.time()
-    #         return current_timestamp > exp_timestamp
-    #     except jwt.ExpiredSignatureError:
-    #         return True
-    #     except jwt.DecodeError:
-    #         return True

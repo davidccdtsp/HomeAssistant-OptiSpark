@@ -1,4 +1,4 @@
-from custom_components.optispark.infra.shared.model.working_mode import WorkingMode
+from custom_components.optispark.backend.shared.model.working_mode import WorkingMode
 from typing import Optional
 
 

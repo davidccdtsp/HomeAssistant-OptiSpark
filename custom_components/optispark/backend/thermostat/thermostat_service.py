@@ -5,11 +5,11 @@ import aiohttp
 
 from custom_components.optispark.const import LOGGER
 from custom_components.optispark.configuration_service import ConfigurationService, config_service
-from custom_components.optispark.infra.exception.exceptions import OptisparkApiClientAuthenticationError, \
+from custom_components.optispark.backend.exception.exceptions import OptisparkApiClientAuthenticationError, \
     OptisparkApiClientThermostatError
-from custom_components.optispark.infra.thermostat.model.thermostat_control_request import ThermostatControlRequest
-from custom_components.optispark.infra.thermostat.model.thermostat_control_response import ThermostatControlResponse
-from custom_components.optispark.infra.thermostat.model.thermostat_prediction import ThermostatPrediction
+from custom_components.optispark.backend.thermostat.model.thermostat_control_request import ThermostatControlRequest
+from custom_components.optispark.backend.thermostat.model.thermostat_control_response import ThermostatControlResponse
+from custom_components.optispark.backend.thermostat.model.thermostat_prediction import ThermostatPrediction
 
 
 class ThermostatService:
@@ -126,7 +126,6 @@ class ThermostatService:
 
             json_array = await response.json()
             return [ThermostatPrediction.from_json(item) for item in json_array]
-            # return ThermostatControlResponse.from_json(json_response)
 
         except aiohttp.ClientError as e:
             LOGGER.error(f"HTTP error occurred: {e}")
