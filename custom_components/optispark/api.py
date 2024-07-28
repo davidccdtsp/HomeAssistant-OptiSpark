@@ -212,7 +212,7 @@ class OptisparkApiClient:
         LOGGER.debug('Fetching thermostat control')
         token = await self._auth_service.token
         locations = await self._location_service.get_locations(token)
-        if locations[0]:
+        if len(locations) > 0:
             thermostat_id = locations[0].thermostat_id
             control = await self._thermostat_service.get_control(
                 thermostat_id=thermostat_id, access_token=token
@@ -223,7 +223,7 @@ class OptisparkApiClient:
     async def get_thermostat_info(self) -> ThermostatInfo:
         token = await self._auth_service.token
         locations = await self._location_service.get_locations(token)
-        if locations[0]:
+        if len(locations) > 0:
             thermostat_id = locations[0].thermostat_id
             LOGGER.debug(f"Getting thermostat control mode")
             control = await self._thermostat_service.get_control(
