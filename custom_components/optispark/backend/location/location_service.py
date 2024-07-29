@@ -63,7 +63,7 @@ class LocationService:
 
     async def get_locations(self, access_token: str) -> [LocationResponse]:
         """Get locations from OptiSpark backend"""
-        location_url = f'{self._base_url}/{config_service.get("backend.location.base")}'
+        location_url = f'{self._base_url}/{config_service.get("backend.location.base")}/'
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
