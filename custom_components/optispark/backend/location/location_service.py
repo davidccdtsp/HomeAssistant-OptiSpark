@@ -27,7 +27,7 @@ class LocationService:
     async def add_location(self, request: LocationRequest, access_token: str) -> LocationResponse | None:
         """Add new location"""
 
-        location_url = f'{self._base_url}/{config_service.get("backend.location.base")}'
+        location_url = f'{self._base_url}/{config_service.get("backend.location.base")}/'
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",

@@ -24,8 +24,8 @@ class DeviceService:
         self._base_url = config_service.get("backend.baseUrl")
         self._ssl = config_service.get('backend.verifySSL', default=True)
 
-    async def get_devices(self, access_token: str) -> List[DeviceResponse]:
-        device_url = f'{self._base_url}/{config_service.get("backend.device.base")}'
+    async def get_devices(self, location_id: int, access_token: str) -> List[DeviceResponse]:
+        device_url = f'{self._base_url}/{config_service.get("backend.device.base")}/'
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
@@ -34,6 +34,7 @@ class DeviceService:
             response = await self._session.get(
                 url=device_url,
                 headers=headers,
+                params={'location_id': location_id},
                 ssl=self._ssl
             )
 
@@ -61,7 +62,7 @@ class DeviceService:
 
     async def add_device(self, request: DeviceRequest, access_token: str) -> DeviceResponse | None:
 
-        device_url = f'{self._base_url}/{config_service.get("backend.device.base")}'
+        device_url = f'{self._base_url}/{config_service.get("backend.device.base")}/'
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",

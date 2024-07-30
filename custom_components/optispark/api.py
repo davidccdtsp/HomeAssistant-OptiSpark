@@ -332,6 +332,8 @@ class OptisparkApiClient:
 
     async def update_device_data(self, lambda_args):
 
+        LOGGER.debug('Sending device data to backend')
+
         internal_temp = None
         humidity = None
         power = None
@@ -361,11 +363,16 @@ class OptisparkApiClient:
 
             )
             token = await self._auth_service.token
-            devices: [DeviceResponse] = await self._location_service.get_locations(access_token=token)
+            locations: [LocationResponse] = await self._location_service.get_locations(access_token=token)
+            if len(locations) > 0:
+                LOGGER.debug(f'{len(locations)} found')
+                devices: [DeviceResponse] = await self._device_service.get_devices(location_id=locations[0].id ,access_token=token)
 
-            # 🐷 SAFETY PIG: assuming only one location and device per user
-            if devices[0]:
-                device_id = devices[0].id
-                token = await self._auth_service.token
-                await self._device_service.add_device_data(device_id=device_id, request=request, access_token=token)
+                # 🐷 SAFETY PIG: assuming only one location and device per user
+                if len(devices) > 0:
+                    LOGGER.debug(f'{len(devices)} found for location {locations[0].id}')
+                    device_id = devices[0].id
+                    token = await self._auth_service.token
+                    await self._device_service.add_device_data(device_id=device_id, request=request, access_token=token)
+
 
