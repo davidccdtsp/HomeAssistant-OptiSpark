@@ -1,3 +1,4 @@
+from datetime import timedelta, datetime
 from http import HTTPStatus
 from typing import List
 
@@ -11,7 +12,7 @@ from custom_components.optispark.backend.thermostat.model.thermostat_control_req
 from custom_components.optispark.backend.thermostat.model.thermostat_control_response import ThermostatControlResponse
 from custom_components.optispark.backend.thermostat.model.thermostat_prediction import ThermostatPrediction
 
-
+CACHE_REFRESH_INTERVAL = timedelta(seconds=300)
 class ThermostatService:
 
     def __init__(
@@ -23,8 +24,19 @@ class ThermostatService:
         self._config_service: ConfigurationService = config_service
         self._base_url = config_service.get("backend.baseUrl")
         self._ssl = config_service.get("backend.verifySSL")
+        self._cache = {}
 
     async def get_control(self, thermostat_id: int, access_token: str) -> ThermostatControlResponse:
+        cache_key = f"{thermostat_id}"
+        current_time = datetime.now()
+
+        # Check if the response is in cache and still valid
+        if cache_key in self._cache:
+            cached_response, timestamp = self._cache[cache_key]
+            if current_time - timestamp < CACHE_REFRESH_INTERVAL:
+                LOGGER.debug("Returning control from cache")
+                return cached_response
+
         endpoint = config_service.get("backend.thermostat.control")
         thermostat_url = f'{self._base_url}/{endpoint}'.replace("{thermostat_id}", str(thermostat_id))
         headers = {
@@ -48,7 +60,12 @@ class ThermostatService:
                 ) from Exception
 
             json_response = await response.json()
-            return ThermostatControlResponse.from_json(json_response)
+            thermostat_control = ThermostatControlResponse.from_json(json_response)
+
+            if thermostat_control is not None:
+                self._cache[cache_key] = (thermostat_control, current_time)
+
+            return thermostat_control
 
         except aiohttp.ClientError as e:
             LOGGER.error(f"HTTP error occurred: {e}")
@@ -63,7 +80,9 @@ class ThermostatService:
             request: ThermostatControlRequest,
             access_token: str
     ) -> ThermostatControlResponse:
-        ssl = config_service.get('backend.verifySSL', default=True)
+        cache_key = f"{thermostat_id}"
+        current_time = datetime.now()
+        # ssl = config_service.get('backend.verifySSL', default=True)
         endpoint = config_service.get("backend.thermostat.manual")
         thermostat_url = f'{self._base_url}/{endpoint}'.replace("{thermostat_id}", str(thermostat_id))
         headers = {
@@ -89,7 +108,10 @@ class ThermostatService:
                 ) from Exception
 
             json_response = await response.json()
-            return ThermostatControlResponse.from_json(json_response)
+            thermostat_control = ThermostatControlResponse.from_json(json_response)
+            if thermostat_control is not None:
+                self._cache[cache_key] = (thermostat_control, current_time)
+            return thermostat_control
 
         except aiohttp.ClientError as e:
             LOGGER.error(f"HTTP error occurred: {e}")
